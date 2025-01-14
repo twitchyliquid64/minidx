@@ -1,0 +1,8 @@
+[package]
+edition = "2021"
+name = "minidx-core"
+version = "0.1.0"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+num-traits.workspace = true
