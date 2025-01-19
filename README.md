@@ -1,6 +1,6 @@
 # minidx
 
-A loving, minimalist fork of the incredible [dfdx](https://github.com/coreylowman/dfdx) by coreylowman et al, with a focus
+A loving, minimalist fork/rewrite of the incredible [dfdx](https://github.com/coreylowman/dfdx) by coreylowman et al, with a focus
 on stable rust & portability.
 
 Equivalently licensed, AKA MIT OR Apache.

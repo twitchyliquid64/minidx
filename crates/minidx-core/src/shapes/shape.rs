@@ -1,6 +1,6 @@
-use super::{Dim, Const, ConstDim};
-use super::{Axis, Axes, HasAxes};
+use super::{Axes, Axis, HasAxes};
 use super::{Axes2, Axes3, Axes4, Axes5, Axes6};
+use super::{Const, ConstDim, Dim};
 
 /// Represents either `[T; N]` or `Vec<T>`
 pub trait Array<T>: IntoIterator<Item = T> {
@@ -32,9 +32,8 @@ pub trait Shape:
     + Eq
     + PartialEq
     + HasAxes<Self::AllAxes>
-    + HasAxes<Self::LastAxis>
-    // + ReduceShapeTo<(), Self::AllAxes>
-    // + ReduceShape<Self::LastAxis>
+    + HasAxes<Self::LastAxis> // + ReduceShapeTo<(), Self::AllAxes>
+// + ReduceShape<Self::LastAxis>
 {
     /// The number of dimensions the shape has
     const NUM_DIMS: usize;
