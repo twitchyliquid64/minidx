@@ -130,3 +130,26 @@ impl<E: Unit + Dtype> TensorFromVec<E> for super::MiniBackend<E> {
         }
     }
 }
+
+impl<E: Unit + Dtype> ZerosTensor<E> for super::MiniBackend<E> {
+    fn try_zeros_like<S: HasShape>(&self, src: &S) -> Result<Tensor<S::Shape, E, Self>, Error> {
+        let shape = *src.shape();
+        let strides = shape.strides();
+        let data = self.try_alloc_zeros(shape.num_elements())?;
+        let data = Arc::new(data);
+        Ok(Tensor {
+            id: unique_id(),
+            data,
+            shape,
+            strides,
+            backend: self.clone(),
+        })
+    }
+}
+
+impl<E: Unit + Dtype> ZeroFillStorage<E> for super::MiniBackend<E> {
+    fn try_fill_with_zeros(&self, storage: &mut Self::Vec) -> Result<(), Error> {
+        storage.fill(Default::default());
+        Ok(())
+    }
+}

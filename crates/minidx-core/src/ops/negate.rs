@@ -1,6 +1,5 @@
 use super::UnaryOp;
 use crate::Dtype;
-use std::borrow::Cow;
 
 /// Element-wise negation of all values in the tensor.
 pub struct NegateOp;
@@ -16,6 +15,7 @@ mod tests {
     use super::*;
     use crate::ops::UnaryKernel;
     use crate::tensor::{AsArray, TensorFrom};
+    use std::borrow::Cow;
 
     #[test]
     fn test_negate_0d() {

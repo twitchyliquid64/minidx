@@ -99,3 +99,28 @@ impl<E, S: Shape, D: TensorFromVec<E>> TensorFrom<(Vec<E>, S), S, E> for D {
         self.try_tensor_from_vec(src, shape)
     }
 }
+
+/// Construct tensors filled with zeros.
+pub trait ZerosTensor<E>: Backend<E> {
+    /// Creates a tensor filled with zeros.
+    fn zeros<S: ConstShape>(&self) -> Tensor<S, E, Self> {
+        self.try_zeros_like::<S>(&Default::default()).unwrap()
+    }
+
+    /// Fallible version of [ZerosTensor::zeros]
+    fn try_zeros<S: ConstShape>(&self) -> Result<Tensor<S, E, Self>, Error> {
+        self.try_zeros_like::<S>(&Default::default())
+    }
+
+    /// Build the tensor with a shape given by something else.
+    fn zeros_like<S: HasShape>(&self, src: &S) -> Tensor<S::Shape, E, Self> {
+        self.try_zeros_like(src).unwrap()
+    }
+
+    /// Fallible version of [ZerosTensor::zeros_like]
+    fn try_zeros_like<S: HasShape>(&self, src: &S) -> Result<Tensor<S::Shape, E, Self>, Error>;
+}
+
+pub trait ZeroFillStorage<E>: Backend<E> {
+    fn try_fill_with_zeros(&self, storage: &mut Self::Vec) -> Result<(), Error>;
+}
