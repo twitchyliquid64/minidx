@@ -6,6 +6,8 @@ mod negate;
 pub use negate::*;
 mod add;
 pub use add::*;
+mod matmul;
+pub use matmul::*;
 
 /// UnaryKernel implements the execution of a unary op on a tensor.
 pub trait UnaryKernel<Op, E: Dtype>: Backend<E> {
