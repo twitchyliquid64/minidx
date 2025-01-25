@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 #[allow(unused)]
 #[allow(clippy::too_many_arguments)]
+#[inline(always)]
 fn naive_gemm<F: Dtype, M: Dim, K: Dim, N: Dim>(
     (m, k, n): (M, K, N),
     accum: bool,
@@ -34,7 +35,7 @@ fn naive_gemm<F: Dtype, M: Dim, K: Dim, N: Dim>(
 /// Binary matrix multiplication of two tensors.
 pub(crate) struct MatMulOp;
 
-pub trait MatMatKernel<E: Dtype>: Backend<E> {
+pub trait MatMulKernel<E: Dtype>: Backend<E> {
     fn matmul<M: Dim, K: Dim, N: Dim>(
         &self,
         lhs: &Tensor<(M, K), E, Self>,
@@ -42,7 +43,7 @@ pub trait MatMatKernel<E: Dtype>: Backend<E> {
     ) -> Result<Tensor<(M, N), E, Self>, Error>;
 }
 
-impl<E: Dtype> MatMatKernel<E> for MiniBackend<E> {
+impl<E: Dtype> MatMulKernel<E> for MiniBackend<E> {
     fn matmul<M: Dim, K: Dim, N: Dim>(
         &self,
         lhs: &Tensor<(M, K), E, Self>,
