@@ -11,7 +11,9 @@ pub use tensor::{Backend, Error, Tensor, ZerosTensor};
 
 pub mod ops;
 
-pub mod linear; // TODO: Move to own crate.
+pub mod activation; // TODO: move to layers module.
+pub mod bias1d; // TODO: move to layers module.
+pub mod linear; // TODO: move to layers module.
 
 /// An id used in to associate gradients with Tensors.
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, PartialOrd, Ord)]

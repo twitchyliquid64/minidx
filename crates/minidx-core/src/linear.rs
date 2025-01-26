@@ -1,5 +1,4 @@
-use crate::ops::MatMulKernel;
-use crate::{Backend, Dim, Dtype, Shape, Tensor};
+use crate::{Dim, Dtype, Shape};
 
 #[allow(unused)]
 #[allow(clippy::too_many_arguments)]
@@ -44,6 +43,7 @@ fn naive_gemm<F: Dtype, M: Dim, K: Dim, N: Dim>(
     }
 }
 
+/// A fully-connected layer with a given number of inputs and outputs. No bias.
 #[derive(Clone, Debug)]
 struct Dense<E: Dtype, const I: usize, const O: usize> {
     weights: [[E; I]; O],
@@ -77,6 +77,48 @@ impl<E: Dtype, const I: usize, const O: usize> Dense<E, I, O> {
 
         out
     }
+
+    #[inline]
+    fn gradients_wrt_input(&self, output_gradients: &[E; O]) -> [E; I] {
+        let mut out: [E; I] = [E::default(); I];
+
+        // TODO: Use gemm package + parallelism
+        let (m, k) = (1, I);
+        let n = O;
+        let strides = (m, n).strides();
+        naive_gemm(
+            (m, n, k),
+            true,
+            output_gradients.as_ptr(),
+            strides,
+            self.weights.as_ptr() as *const E,
+            Shape::strides(&(O, I)),
+            out.as_mut_ptr(),
+            Shape::strides(&(1, I)),
+        );
+        out
+    }
+
+    #[inline]
+    fn gradients_wrt_weights(&self, input: &[E; I], output_gradients: &[E; O]) -> [[E; I]; O] {
+        let mut out: [[E; I]; O] = [[E::default(); I]; O];
+
+        // TODO: Use gemm package + parallelism
+        let (m, k) = (1, I);
+        let n = O;
+        let strides = (m, n).strides();
+        naive_gemm(
+            (k, m, n),
+            true,
+            input.as_ptr(),
+            Shape::strides(&(I, 1)),
+            output_gradients.as_ptr(),
+            strides,
+            out.as_mut_ptr() as *mut E,
+            Shape::strides(&(O, I)),
+        );
+        out
+    }
 }
 
 #[cfg(test)]
@@ -95,6 +137,20 @@ mod tests {
             weights: [[0.5], [1.0]],
         };
         assert_eq!(layer.forward(&[1.0]), [0.5, 1.0],);
+        assert_eq!(layer.gradients_wrt_input(&[2.0, 0.0]), [1.0],);
+
+        assert_eq!(
+            layer.gradients_wrt_weights(&[1.0], &[2.0, 0.0]),
+            [[2.0], [0.0]],
+        );
+        assert_eq!(
+            layer.gradients_wrt_weights(&[1.0], &[0.0, 2.0]),
+            [[0.0], [2.0]],
+        );
+        assert_eq!(
+            layer.gradients_wrt_weights(&[1.0], &[1.0, 2.0]),
+            [[1.0], [2.0]],
+        );
     }
 
     #[test]
@@ -103,6 +159,7 @@ mod tests {
             weights: [[0.05, 0.5]],
         };
         assert_eq!(layer.forward(&[1.0, 2.0]), [1.05],);
+        assert_eq!(layer.gradients_wrt_input(&[2.0]), [0.1, 1.0],);
     }
 
     #[test]
@@ -111,5 +168,6 @@ mod tests {
             weights: [[0.1, 0.4], [0.5, 0.2]],
         };
         assert_eq!(layer.forward(&[1.0, 2.0]), [1.1, 0.8],);
+        assert_eq!(layer.gradients_wrt_input(&[0.0, 1.0]), [0.5, 0.2],);
     }
 }
