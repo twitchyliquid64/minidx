@@ -28,6 +28,14 @@ impl<E: Float> Activation<E> {
     }
 }
 
+impl<E: Float, const I: usize> crate::Module<[E; I]> for Activation<E> {
+    type Output = [E; I];
+
+    fn forward(&mut self, x: [E; I]) -> Result<Self::Output, super::Error> {
+        Ok(Activation::forward(self, &x))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

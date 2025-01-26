@@ -1,8 +1,8 @@
 use crate::Dtype;
 
 #[derive(Clone, Debug)]
-struct Bias1d<E: Dtype, const I: usize> {
-    bias: [E; I],
+pub struct Bias1d<E: Dtype, const I: usize> {
+    pub(crate) bias: [E; I],
 }
 
 impl<E: Dtype, const I: usize> Default for Bias1d<E, I> {
@@ -20,6 +20,14 @@ impl<E: Dtype, const I: usize> Bias1d<E, I> {
             *o += *i;
         }
         out
+    }
+}
+
+impl<E: Dtype, const I: usize> crate::Module<[E; I]> for Bias1d<E, I> {
+    type Output = [E; I];
+
+    fn forward(&mut self, x: [E; I]) -> Result<Self::Output, super::Error> {
+        Ok(Bias1d::forward(self, &x))
     }
 }
 
