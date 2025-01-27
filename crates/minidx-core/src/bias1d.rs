@@ -14,7 +14,7 @@ impl<E: Dtype, const I: usize> Default for Bias1d<E, I> {
 }
 
 impl<E: Dtype, const I: usize> Bias1d<E, I> {
-    pub fn forward(&self, input: &[E; I]) -> [E; I] {
+    fn forward(&self, input: &[E; I]) -> [E; I] {
         let mut out: [E; I] = self.bias.clone();
         for (o, i) in out.iter_mut().zip(input.iter()) {
             *o += *i;
@@ -23,11 +23,25 @@ impl<E: Dtype, const I: usize> Bias1d<E, I> {
     }
 }
 
+impl<E: Dtype, const I: usize> crate::BaseModule for Bias1d<E, I> {}
+
 impl<E: Dtype, const I: usize> crate::Module<[E; I]> for Bias1d<E, I> {
     type Output = [E; I];
 
-    fn forward(&mut self, x: [E; I]) -> Result<Self::Output, super::Error> {
-        Ok(Bias1d::forward(self, &x))
+    fn forward(&mut self, x: &[E; I]) -> Result<Self::Output, super::Error> {
+        Ok(Bias1d::forward(self, x))
+    }
+}
+
+impl<E: Dtype, const I: usize> crate::RevModule<[E; I]> for Bias1d<E, I> {
+    type SelfGrads = [E; I];
+
+    fn reverse(
+        &mut self,
+        _inputs: &[E; I],
+        grads_wrt_output: &[E; I],
+    ) -> ([E; I], Self::SelfGrads) {
+        (grads_wrt_output.clone(), grads_wrt_output.clone())
     }
 }
 

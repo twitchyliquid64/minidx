@@ -1,4 +1,4 @@
-/// Represents a single dimension of a multi dimensional [Shape]
+/// Represents a single dimension of a multi dimensional [crate::Shape]
 pub trait Dim: 'static + Copy + Clone + std::fmt::Debug + Send + Sync + Eq + PartialEq {
     fn size(&self) -> usize;
     fn from_size(size: usize) -> Option<Self>;

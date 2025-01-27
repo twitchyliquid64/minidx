@@ -121,11 +121,24 @@ impl<E: Dtype, const I: usize, const O: usize> Dense<E, I, O> {
     }
 }
 
+impl<E: Dtype, const I: usize, const O: usize> crate::BaseModule for Dense<E, I, O> {}
+
 impl<E: Dtype, const I: usize, const O: usize> crate::Module<[E; I]> for Dense<E, I, O> {
     type Output = [E; O];
 
-    fn forward(&mut self, x: [E; I]) -> Result<Self::Output, super::Error> {
+    fn forward(&mut self, x: &[E; I]) -> Result<Self::Output, super::Error> {
         Ok(Dense::forward(self, &x))
+    }
+}
+
+impl<E: Dtype, const I: usize, const O: usize> crate::RevModule<[E; I]> for Dense<E, I, O> {
+    type SelfGrads = [[E; I]; O];
+
+    fn reverse(&mut self, inputs: &[E; I], grads_wrt_output: &[E; O]) -> ([E; I], Self::SelfGrads) {
+        (
+            Dense::gradients_wrt_input(self, grads_wrt_output),
+            Dense::gradients_wrt_weights(self, inputs, grads_wrt_output),
+        )
     }
 }
 
@@ -177,5 +190,14 @@ mod tests {
         };
         assert_eq!(layer.forward(&[1.0, 2.0]), [1.1, 0.8],);
         assert_eq!(layer.gradients_wrt_input(&[0.0, 1.0]), [0.5, 0.2],);
+    }
+
+    #[test]
+    fn grad_wrt_input() {
+        let layer = Dense::<f32, 2, 2> {
+            weights: [[0.0, 1.0], [1.0, 0.0]],
+        };
+        assert_eq!(layer.forward(&[1.0, 0.0]), [0.0, 1.0],);
+        assert_eq!(layer.gradients_wrt_input(&[1.0, -1.0]), [-1.0, 1.0],);
     }
 }

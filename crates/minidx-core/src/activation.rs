@@ -9,7 +9,8 @@ pub enum Activation<E: Float> {
 }
 
 impl<E: Float> Activation<E> {
-    pub fn forward<const I: usize>(&self, input: &[E; I]) -> [E; I] {
+    #[inline]
+    fn forward<const I: usize>(&self, input: &[E; I]) -> [E; I] {
         let mut out: [E; I] = [E::default(); I];
         for (o, i) in out.iter_mut().zip(input.iter()) {
             *o = match self {
@@ -26,13 +27,54 @@ impl<E: Float> Activation<E> {
         }
         out
     }
+
+    #[inline]
+    fn backward<const I: usize>(&self, input: &[E; I]) -> [E; I] {
+        let mut out: [E; I] = [E::default(); I];
+        for (o, i) in out.iter_mut().zip(input.iter()) {
+            *o = match self {
+                Activation::Sigmoid => *i * E::ONE.sub(*i),
+                Activation::Relu => {
+                    if i > &E::default() {
+                        E::ONE
+                    } else {
+                        E::default()
+                    }
+                }
+                Activation::LeakyRelu(a) => {
+                    if i < &E::default() {
+                        *a
+                    } else {
+                        E::ONE
+                    }
+                }
+            };
+        }
+        out
+    }
 }
+
+impl<E: Float> crate::BaseModule for Activation<E> {}
 
 impl<E: Float, const I: usize> crate::Module<[E; I]> for Activation<E> {
     type Output = [E; I];
 
-    fn forward(&mut self, x: [E; I]) -> Result<Self::Output, super::Error> {
-        Ok(Activation::forward(self, &x))
+    fn forward(&mut self, x: &[E; I]) -> Result<Self::Output, super::Error> {
+        Ok(Activation::forward(self, x))
+    }
+}
+
+impl<E: Float, const I: usize> crate::RevModule<[E; I]> for Activation<E> {
+    type SelfGrads = ();
+
+    fn reverse(&mut self, inputs: &[E; I], grads_wrt_output: &[E; I]) -> ([E; I], Self::SelfGrads) {
+        let mut grads = self.backward(inputs);
+        grads
+            .iter_mut()
+            .zip(grads_wrt_output)
+            .for_each(|(ga, go)| *ga *= *go);
+
+        (grads, ())
     }
 }
 

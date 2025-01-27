@@ -1,5 +1,5 @@
 mod dtypes;
-pub use dtypes::*;
+pub use dtypes::{Dtype, Float, Unit};
 pub mod shapes;
 pub use shapes::*;
 
@@ -12,42 +12,93 @@ pub mod linear; // TODO: move to layers module.
 
 pub type Error = ();
 
-/// Some unit of computation that consumes `Input` and produces [Module::Output].
+/// A unit of computation that consumes `Input` and produces [Module::Output].
 pub trait Module<X> {
     /// The type that this unit produces given `Input`.
     type Output;
 
-    fn forward(&mut self, x: X) -> Result<Self::Output, Error>;
+    fn forward(&mut self, x: &X) -> Result<Self::Output, Error>;
 }
 
-macro_rules! tuple_impls {
-    ([$($name:ident),+] [$($idx:tt),+], $last:ident, [$($rev_tail:ident),*]) => {
+/// A unit of computation which can do backpropagation without knowledge of any
+/// additional state.
+///
+/// This trait is to be implemented by individual network layers, but not compositions of them.
+pub trait RevModule<X>: Module<X> {
+    /// The type describing gradients with respect to the modules' own parameters.
+    type SelfGrads;
 
-        /*This macro expands like this for a 4-tuple:
+    /// Returns the gradients with respect to the input, and the
+    /// gradients with respect to any internal parameters.
+    fn reverse(
+        &mut self,
+        inputs: &X,
+        grads_wrt_output: &<Self as Module<X>>::Output,
+    ) -> (X, Self::SelfGrads);
+}
 
-        impl<
-            Input: Tensor,
+/// Some sequential computation that consumes `Input` and produces [Module::Output],
+/// but also produces artifacts describing the execution that can later be used
+/// during backprop.
+///
+/// A supertrait of [Module].
+pub trait TracedModule<X>: Module<X> {
+    /// The type that this unit produces to describe intermediate state.
+    ///
+    /// This is typically the input to the module.
+    type Trace;
 
-            // `$last:`
-            D:
+    /// Same as [Module::forward], except intermediate computations that are needed
+    /// for backprop are returned.
+    fn traced_forward(&mut self, x: X)
+        -> Result<(<Self as Module<X>>::Output, Self::Trace), Error>;
+}
 
-            // `$(Module::<$rev_tail ::Output>, $rev_tail: )+`
-            Module<C ::Output>, C:
-            Module<B ::Output>, B:
-            Module<A ::Output>, A:
+impl<Input, M: Module<Input> + BaseModule> TracedModule<Input> for M {
+    type Trace = Input;
 
-            Module<Input>
-        > Module<Input> for (A, B, C, D) {
-            type Output = D::Output;
-            fn forward(&self, x: Input) -> Self::Output {
-                let x = self.0.forward(x);
-                let x = self.1.forward(x);
-                let x = self.2.forward(x);
-                let x = self.3.forward(x);
-                x
-            }
-        }
-        */
+    fn traced_forward(
+        &mut self,
+        x: Input,
+    ) -> Result<(<Self as crate::Module<Input>>::Output, Self::Trace), Error> {
+        Ok((Module::forward(self, &x)?, (x)))
+    }
+}
+
+/// Some sequential computation which can perform backprop on itself given trace state
+/// and the gradients of its outputs: computing parameter updates for itself.
+///
+/// Relies on behavior from the [TracedModule] trait.
+pub trait BackpropModule<X>: TracedModule<X> {
+    /// Type describing movement in the modules' own parameters in response to backpropagation.
+    type SelfGrads;
+
+    fn backprop(
+        &mut self,
+        trace: &<Self as TracedModule<X>>::Trace,
+        grads_wrt_output: <Self as Module<X>>::Output,
+    ) -> (X, Self::SelfGrads);
+}
+
+impl<Input, M: TracedModule<Input, Trace = Input> + RevModule<Input> + BaseModule>
+    BackpropModule<Input> for M
+{
+    type SelfGrads = <M as RevModule<Input>>::SelfGrads;
+
+    fn backprop(
+        &mut self,
+        trace: &<M as TracedModule<Input>>::Trace,
+        grads_wrt_output: <M as Module<Input>>::Output,
+    ) -> (Input, Self::SelfGrads) {
+        M::reverse(self, trace, &grads_wrt_output)
+    }
+}
+
+/// Marker trait for low-level layers which are composable modules.
+trait BaseModule {}
+
+macro_rules! fwd_tuple_impls {
+    ([$($name:ident),+] [$($idx:tt),*], $last:ident, [$($rev_tail:ident),*], [$($trace_name:ident),*]) => {
         impl<
             Input,
             $last:
@@ -57,20 +108,160 @@ macro_rules! tuple_impls {
             type Output = $last ::Output;
 
             /// Calls forward sequentially on each module in the tuple.
-            fn forward(&mut self, x: Input) -> Result<Self::Output, Error> {
-                $(let x = self.$idx.forward(x)?;)+
+            fn forward(&mut self, x: &Input) -> Result<Self::Output, Error> {
+                let x = self.0.forward(x)?;
+                $(let x = self.$idx.forward(&x)?;)*
                 Ok(x)
+            }
+        }
+
+        impl<Input,
+             $last:
+             $(TracedModule::<$rev_tail ::Output>, $rev_tail: )*
+             TracedModule<Input>
+            > TracedModule<Input> for ($($name,)+)
+        {
+            type Trace = ($($name::Trace,)+);
+
+            fn traced_forward(
+                &mut self,
+                x: Input,
+            ) -> Result<(<Self as Module<Input>>::Output, Self::Trace), Error> {
+                let (x, m1t) = self.0.traced_forward(x)?;
+                $(let (x, $trace_name) = self.$idx.traced_forward(x)?;)*
+                Ok((x, (m1t, $($trace_name,)*)))
             }
         }
     };
 }
 
-tuple_impls!([M1][0], M1, []);
-tuple_impls!([M1, M2] [0, 1], M2, [M1]);
-tuple_impls!([M1, M2, M3] [0, 1, 2], M3, [M2, M1]);
-tuple_impls!([M1, M2, M3, M4] [0, 1, 2, 3], M4, [M3, M2, M1]);
-tuple_impls!([M1, M2, M3, M4, M5] [0, 1, 2, 3, 4], M5, [M4, M3, M2, M1]);
-tuple_impls!([M1, M2, M3, M4, M5, M6] [0, 1, 2, 3, 4, 5], M6, [M5, M4, M3, M2, M1]);
+fwd_tuple_impls!([M1][], M1, [], []);
+fwd_tuple_impls!([M1, M2][1], M2, [M1], [m2t]);
+fwd_tuple_impls!([M1, M2, M3] [1, 2], M3, [M2, M1], [m2t, m3t]);
+fwd_tuple_impls!([M1, M2, M3, M4] [1, 2, 3], M4, [M3, M2, M1], [m2t, m3t, m4t]);
+fwd_tuple_impls!([M1, M2, M3, M4, M5] [1, 2, 3, 4], M5, [M4, M3, M2, M1], [m2t, m3t, m4t, m5t]);
+fwd_tuple_impls!([M1, M2, M3, M4, M5, M6] [1, 2, 3, 4, 5], M6, [M5, M4, M3, M2, M1], [m2t, m3t, m4t, m5t, m6t]);
+fwd_tuple_impls!([M1, M2, M3, M4, M5, M6, M7] [1, 2, 3, 4, 5, 6], M7, [M6, M5, M4, M3, M2, M1], [m2t, m3t, m4t, m5t, m6t, m7t]);
+
+// TODO: Turn BackpropModule impls into a macro
+
+impl<Input, M: BackpropModule<Input, SelfGrads = <M as TracedModule<Input>>::Trace>>
+    BackpropModule<Input> for (M,)
+{
+    type SelfGrads = (<M as BackpropModule<Input>>::SelfGrads,);
+
+    fn backprop(
+        &mut self,
+        trace: &<Self as TracedModule<Input>>::Trace,
+        grads_wrt_output: <Self as Module<Input>>::Output,
+    ) -> (Input, Self::SelfGrads) {
+        let (next_grads, updates) = self.0.backprop(&trace.0, grads_wrt_output);
+        (next_grads, (updates,))
+    }
+}
+
+impl<Input, M1: BackpropModule<Input>, M2: BackpropModule<M1::Output>> BackpropModule<Input>
+    for (M1, M2)
+{
+    type SelfGrads = (
+        <M1 as BackpropModule<Input>>::SelfGrads,
+        <M2 as BackpropModule<M1::Output>>::SelfGrads,
+    );
+
+    fn backprop(
+        &mut self,
+        trace: &<Self as TracedModule<Input>>::Trace,
+        grads_wrt_output: <Self as Module<Input>>::Output,
+    ) -> (Input, Self::SelfGrads) {
+        let (next_grads, u2) = self.1.backprop(&trace.1, grads_wrt_output);
+        let (next_grads, u1) = self.0.backprop(&trace.0, next_grads);
+        (next_grads, (u1, u2))
+    }
+}
+
+impl<
+        Input,
+        M1: BackpropModule<Input>,
+        M2: BackpropModule<M1::Output>,
+        M3: BackpropModule<M2::Output>,
+    > BackpropModule<Input> for (M1, M2, M3)
+{
+    type SelfGrads = (
+        <M1 as BackpropModule<Input>>::SelfGrads,
+        <M2 as BackpropModule<M1::Output>>::SelfGrads,
+        <M3 as BackpropModule<M2::Output>>::SelfGrads,
+    );
+
+    fn backprop(
+        &mut self,
+        trace: &<Self as TracedModule<Input>>::Trace,
+        grads_wrt_output: <Self as Module<Input>>::Output,
+    ) -> (Input, Self::SelfGrads) {
+        let (next_grads, u3) = self.2.backprop(&trace.2, grads_wrt_output);
+        let (next_grads, u2) = self.1.backprop(&trace.1, next_grads);
+        let (next_grads, u1) = self.0.backprop(&trace.0, next_grads);
+        (next_grads, (u1, u2, u3))
+    }
+}
+
+impl<
+        Input,
+        M1: BackpropModule<Input>,
+        M2: BackpropModule<M1::Output>,
+        M3: BackpropModule<M2::Output>,
+        M4: BackpropModule<M3::Output>,
+    > BackpropModule<Input> for (M1, M2, M3, M4)
+{
+    type SelfGrads = (
+        <M1 as BackpropModule<Input>>::SelfGrads,
+        <M2 as BackpropModule<M1::Output>>::SelfGrads,
+        <M3 as BackpropModule<M2::Output>>::SelfGrads,
+        <M4 as BackpropModule<M3::Output>>::SelfGrads,
+    );
+
+    fn backprop(
+        &mut self,
+        trace: &<Self as TracedModule<Input>>::Trace,
+        grads_wrt_output: <Self as Module<Input>>::Output,
+    ) -> (Input, Self::SelfGrads) {
+        let (next_grads, u4) = self.3.backprop(&trace.3, grads_wrt_output);
+        let (next_grads, u3) = self.2.backprop(&trace.2, next_grads);
+        let (next_grads, u2) = self.1.backprop(&trace.1, next_grads);
+        let (next_grads, u1) = self.0.backprop(&trace.0, next_grads);
+        (next_grads, (u1, u2, u3, u4))
+    }
+}
+
+impl<
+        Input,
+        M1: BackpropModule<Input>,
+        M2: BackpropModule<M1::Output>,
+        M3: BackpropModule<M2::Output>,
+        M4: BackpropModule<M3::Output>,
+        M5: BackpropModule<M4::Output>,
+    > BackpropModule<Input> for (M1, M2, M3, M4, M5)
+{
+    type SelfGrads = (
+        <M1 as BackpropModule<Input>>::SelfGrads,
+        <M2 as BackpropModule<M1::Output>>::SelfGrads,
+        <M3 as BackpropModule<M2::Output>>::SelfGrads,
+        <M4 as BackpropModule<M3::Output>>::SelfGrads,
+        <M5 as BackpropModule<M4::Output>>::SelfGrads,
+    );
+
+    fn backprop(
+        &mut self,
+        trace: &<Self as TracedModule<Input>>::Trace,
+        grads_wrt_output: <Self as Module<Input>>::Output,
+    ) -> (Input, Self::SelfGrads) {
+        let (next_grads, u5) = self.4.backprop(&trace.4, grads_wrt_output);
+        let (next_grads, u4) = self.3.backprop(&trace.3, next_grads);
+        let (next_grads, u3) = self.2.backprop(&trace.2, next_grads);
+        let (next_grads, u2) = self.1.backprop(&trace.1, next_grads);
+        let (next_grads, u1) = self.0.backprop(&trace.0, next_grads);
+        (next_grads, (u1, u2, u3, u4, u5))
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -84,10 +275,78 @@ mod tests {
             bias1d::Bias1d::<f32, 3>::default(),
         );
         network.0.weights[0][0] = 2.5;
+        network.0.weights[0][1] = 0.5;
         network.2.bias.iter_mut().for_each(|x| *x += 1.0);
 
-        let output = network.forward([1.0, 2.0]);
+        let output = network.forward(&[1.0, 2.0]);
+        assert_eq!(output, Ok([3.5, 1.5, 1.0]));
 
-        assert_eq!(output, Ok([3.5, 1.0, 1.0]));
+        // Also try the TracedModule path
+        let (output2, _) = network.traced_forward([1.0, 2.0]).unwrap();
+        assert_eq!(output.unwrap(), output2);
+    }
+
+    #[test]
+    fn test_module_backward() {
+        let mut network = (
+            linear::Dense::<f32, 2, 3>::default(),
+            activation::Activation::Relu,
+            bias1d::Bias1d::<f32, 3>::default(),
+        );
+
+        let (_, trace) = network.traced_forward([1.0, 2.0]).unwrap();
+        let (grad_wrt_input, _gradient_updates) = network.backprop(&trace, [0.0, 0.0, 0.0]);
+        assert_eq!(grad_wrt_input, [0.0, 0.0]);
+    }
+
+    #[test]
+    fn test_nested_module() {
+        let mut network = (
+            (
+                linear::Dense::<f32, 2, 3>::default(),
+                bias1d::Bias1d::<f32, 3>::default(),
+            ),
+            activation::Activation::Relu,
+        );
+
+        let (_, trace) = network.traced_forward([1.0, 2.0]).unwrap();
+        let (grad_wrt_input, _gradient_updates) = network.backprop(&trace, [5.0, 1.0, 1.0]);
+        assert_eq!(grad_wrt_input, [0.0, 0.0]);
+    }
+
+    #[test]
+    fn test_dense_backprop() {
+        let mut network = linear::Dense::<f32, 2, 3>::default();
+
+        let (_, trace) = network.traced_forward([1.0, 2.0]).unwrap();
+        let (grad_wrt_input, gradient_updates) = network.backprop(&trace, [0.0, 0.0, 0.0]);
+        assert_eq!(grad_wrt_input, [0.0, 0.0]);
+        assert_eq!(gradient_updates, [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0]]);
+
+        let (_, gradient_updates) = network.backprop(&trace, [1.0, 0.0, 0.0]);
+        assert_eq!(gradient_updates, [[1.0, 0.0], [2.0, 0.0], [0.0, 0.0]]); // TODO: Not sure if this is right?
+    }
+
+    #[test]
+    fn test_bias1d_backprop() {
+        let mut network = bias1d::Bias1d::<f32, 2>::default();
+
+        let (_, trace) = network.traced_forward([1.0, 2.0]).unwrap();
+        let (grad_wrt_input, gradient_updates) = network.backprop(&trace, [0.0, 0.0]);
+        assert_eq!(grad_wrt_input, [0.0, 0.0]);
+        assert_eq!(gradient_updates, [0.0, 0.0]);
+
+        let (_, gradient_updates) = network.backprop(&trace, [2.0, 7.0]);
+        assert_eq!(gradient_updates, [2.0, 7.0]);
+    }
+
+    #[test]
+    fn test_activation_backprop() {
+        let mut network = activation::Activation::Relu;
+
+        let (_, trace) = network.traced_forward([1.0, 2.0]).unwrap();
+        let (grad_wrt_input, gradient_updates) = network.backprop(&trace, [0.0, 0.0]);
+        assert_eq!(grad_wrt_input, [0.0, 0.0]);
+        assert_eq!(gradient_updates, ());
     }
 }
