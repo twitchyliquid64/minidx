@@ -6,9 +6,7 @@ pub use shapes::*;
 mod iterate;
 pub(crate) use iterate::*;
 
-pub mod activation; // TODO: move to layers module.
-pub mod bias1d; // TODO: move to layers module.
-pub mod linear; // TODO: move to layers module.
+pub mod layers;
 
 pub type Error = ();
 
@@ -270,9 +268,9 @@ mod tests {
     #[test]
     fn test_module_forward() {
         let mut network = (
-            linear::Dense::<f32, 2, 3>::default(),
-            activation::Activation::Relu,
-            bias1d::Bias1d::<f32, 3>::default(),
+            layers::Dense::<f32, 2, 3>::default(),
+            layers::Activation::Relu,
+            layers::Bias1d::<f32, 3>::default(),
         );
         network.0.weights[0][0] = 2.5;
         network.0.weights[0][1] = 0.5;
@@ -289,9 +287,9 @@ mod tests {
     #[test]
     fn test_module_backward() {
         let mut network = (
-            linear::Dense::<f32, 2, 3>::default(),
-            activation::Activation::Relu,
-            bias1d::Bias1d::<f32, 3>::default(),
+            layers::Dense::<f32, 2, 3>::default(),
+            layers::Activation::Relu,
+            layers::Bias1d::<f32, 3>::default(),
         );
 
         let (_, trace) = network.traced_forward([1.0, 2.0]).unwrap();
@@ -303,10 +301,10 @@ mod tests {
     fn test_nested_module() {
         let mut network = (
             (
-                linear::Dense::<f32, 2, 3>::default(),
-                bias1d::Bias1d::<f32, 3>::default(),
+                layers::Dense::<f32, 2, 3>::default(),
+                layers::Bias1d::<f32, 3>::default(),
             ),
-            activation::Activation::Relu,
+            layers::Activation::Relu,
         );
 
         let (_, trace) = network.traced_forward([1.0, 2.0]).unwrap();
@@ -316,7 +314,7 @@ mod tests {
 
     #[test]
     fn test_dense_backprop() {
-        let mut network = linear::Dense::<f32, 2, 3>::default();
+        let mut network = layers::Dense::<f32, 2, 3>::default();
 
         let (_, trace) = network.traced_forward([1.0, 2.0]).unwrap();
         let (grad_wrt_input, gradient_updates) = network.backprop(&trace, [0.0, 0.0, 0.0]);
@@ -329,7 +327,7 @@ mod tests {
 
     #[test]
     fn test_bias1d_backprop() {
-        let mut network = bias1d::Bias1d::<f32, 2>::default();
+        let mut network = layers::Bias1d::<f32, 2>::default();
 
         let (_, trace) = network.traced_forward([1.0, 2.0]).unwrap();
         let (grad_wrt_input, gradient_updates) = network.backprop(&trace, [0.0, 0.0]);
@@ -342,7 +340,7 @@ mod tests {
 
     #[test]
     fn test_activation_backprop() {
-        let mut network = activation::Activation::Relu;
+        let mut network = layers::Activation::Relu;
 
         let (_, trace) = network.traced_forward([1.0, 2.0]).unwrap();
         let (grad_wrt_input, gradient_updates) = network.backprop(&trace, [0.0, 0.0]);

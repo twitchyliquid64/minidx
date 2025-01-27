@@ -1,10 +1,22 @@
 use crate::Float;
 
+fn sigmoid<E: Float>(i: E) -> E {
+    E::ONE / (E::ONE + i.neg().exp())
+}
+
+/// An element-wise activation function with no trainable parameters.
 #[derive(Clone, Debug, Default)]
 pub enum Activation<E: Float> {
+    /// [Rectified Linear Unit (ReLU)](https://en.wikipedia.org/wiki/Rectifier_(neural_networks)). `max(0, t)`
+    ///
+    /// The derivative is the [Heaviside](https://en.wikipedia.org/wiki/Heaviside_step_function) function.
     #[default]
     Relu,
+    /// [Sigmoid](https://en.wikipedia.org/wiki/Sigmoid_function). `1 / (1 + exp(-t))`.
+    ///
+    /// The derivative is `sigmoid(t) * (1.0 - sigmoid(t))`.
     Sigmoid,
+    /// [Leaky ReLu](https://en.wikipedia.org/wiki/Rectifier_(neural_networks)#Piecewise-linear_variants). `if t > 0 { t } else { a * t }`
     LeakyRelu(E),
 }
 
@@ -14,7 +26,7 @@ impl<E: Float> Activation<E> {
         let mut out: [E; I] = [E::default(); I];
         for (o, i) in out.iter_mut().zip(input.iter()) {
             *o = match self {
-                Activation::Sigmoid => E::ONE / (E::ONE + i.neg().exp()),
+                Activation::Sigmoid => sigmoid(*i),
                 Activation::Relu => E::default().max(*i),
                 Activation::LeakyRelu(a) => {
                     if i < &E::default() {
@@ -33,7 +45,12 @@ impl<E: Float> Activation<E> {
         let mut out: [E; I] = [E::default(); I];
         for (o, i) in out.iter_mut().zip(input.iter()) {
             *o = match self {
-                Activation::Sigmoid => *i * E::ONE.sub(*i),
+                Activation::Sigmoid => {
+                    let sig = sigmoid(*i);
+                    sig * E::ONE.sub(sig)
+                    // TODO: Do we need to compute sigmoid, can we just use i?
+                    // Thats what dfdx does: https://github.com/coreylowman/dfdx/blob/main/dfdx-core/src/tensor_ops/sigmoid/cpu_kernel.rs#L12
+                }
                 Activation::Relu => {
                     if i > &E::default() {
                         E::ONE
@@ -59,7 +76,7 @@ impl<E: Float> crate::BaseModule for Activation<E> {}
 impl<E: Float, const I: usize> crate::Module<[E; I]> for Activation<E> {
     type Output = [E; I];
 
-    fn forward(&mut self, x: &[E; I]) -> Result<Self::Output, super::Error> {
+    fn forward(&mut self, x: &[E; I]) -> Result<Self::Output, crate::Error> {
         Ok(Activation::forward(self, x))
     }
 }

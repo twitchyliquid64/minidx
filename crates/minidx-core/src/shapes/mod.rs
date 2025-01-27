@@ -1,3 +1,5 @@
+//! Low-level types describing data dimensionality
+
 mod dim;
 pub use dim::{Const, ConstDim, Dim};
 mod axes;

@@ -43,7 +43,7 @@ fn naive_gemm<F: Dtype, M: Dim, K: Dim, N: Dim>(
     }
 }
 
-/// A fully-connected layer with a given number of inputs and outputs. No bias.
+/// A fully-connected layer with a fixed number of inputs and outputs. No bias.
 #[derive(Clone, Debug)]
 pub struct Dense<E: Dtype, const I: usize, const O: usize> {
     pub(crate) weights: [[E; I]; O],
@@ -58,7 +58,8 @@ impl<E: Dtype, const I: usize, const O: usize> Default for Dense<E, I, O> {
 }
 
 impl<E: Dtype, const I: usize, const O: usize> Dense<E, I, O> {
-    pub fn forward(&self, input: &[E; I]) -> [E; O] {
+    #[inline]
+    fn forward(&self, input: &[E; I]) -> [E; O] {
         let mut out: [E; O] = [E::default(); O];
 
         // TODO: Use gemm package + parallelism
@@ -126,7 +127,7 @@ impl<E: Dtype, const I: usize, const O: usize> crate::BaseModule for Dense<E, I,
 impl<E: Dtype, const I: usize, const O: usize> crate::Module<[E; I]> for Dense<E, I, O> {
     type Output = [E; O];
 
-    fn forward(&mut self, x: &[E; I]) -> Result<Self::Output, super::Error> {
+    fn forward(&mut self, x: &[E; I]) -> Result<Self::Output, crate::Error> {
         Ok(Dense::forward(self, &x))
     }
 }

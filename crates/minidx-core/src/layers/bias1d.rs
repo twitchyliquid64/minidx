@@ -1,5 +1,6 @@
 use crate::Dtype;
 
+/// A learnable bias on each element.
 #[derive(Clone, Debug)]
 pub struct Bias1d<E: Dtype, const I: usize> {
     pub(crate) bias: [E; I],
@@ -28,7 +29,7 @@ impl<E: Dtype, const I: usize> crate::BaseModule for Bias1d<E, I> {}
 impl<E: Dtype, const I: usize> crate::Module<[E; I]> for Bias1d<E, I> {
     type Output = [E; I];
 
-    fn forward(&mut self, x: &[E; I]) -> Result<Self::Output, super::Error> {
+    fn forward(&mut self, x: &[E; I]) -> Result<Self::Output, crate::Error> {
         Ok(Bias1d::forward(self, x))
     }
 }
