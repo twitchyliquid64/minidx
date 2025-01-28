@@ -6,7 +6,7 @@ pub use shapes::*;
 mod iterate;
 pub(crate) use iterate::*;
 
-mod loss;
+pub mod loss;
 
 pub mod layers;
 
@@ -97,6 +97,11 @@ impl<Input, M: TracedModule<Input, Trace = Input> + RevModule<Input> + BaseModul
 /// Marker trait for low-level layers which are composable modules.
 trait BaseModule {}
 
+/// Something that can have its learnable parameters reset.
+pub trait ResetParams {
+    fn rand_params<RNG: rand::Rng>(&mut self, rng: &mut RNG, scale: f32) -> Result<(), Error>;
+}
+
 macro_rules! fwd_tuple_impls {
     ([$($name:ident),+] [$($idx:tt),*], $last:ident, [$($rev_tail:ident),*], [$($trace_name:ident),*]) => {
         impl<
@@ -130,6 +135,18 @@ macro_rules! fwd_tuple_impls {
                 let (x, m1t) = self.0.traced_forward(x)?;
                 $(let (x, $trace_name) = self.$idx.traced_forward(x)?;)*
                 Ok((x, (m1t, $($trace_name,)*)))
+            }
+        }
+
+        impl<
+            $last:
+            $(crate::ResetParams, $rev_tail: )*
+            crate::ResetParams
+        > crate::ResetParams for ($($name,)+) {
+            fn rand_params<RNG: rand::Rng>(&mut self, rng: &mut RNG, scale: f32) -> Result<(), Error> {
+                self.0.rand_params(rng, scale)?;
+                $(self.$idx.rand_params(rng, scale)?;)*
+                Ok(())
             }
         }
     };
@@ -266,6 +283,8 @@ impl<
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rand::rngs::SmallRng;
+    use rand::SeedableRng;
 
     #[test]
     fn test_module_forward() {
@@ -312,6 +331,24 @@ mod tests {
         let (_, trace) = network.traced_forward([1.0, 2.0]).unwrap();
         let (grad_wrt_input, _gradient_updates) = network.backprop(&trace, [5.0, 1.0, 1.0]);
         assert_eq!(grad_wrt_input, [0.0, 0.0]);
+    }
+
+    #[test]
+    fn test_reset_params() {
+        let mut network = (
+            layers::Dense::<f32, 2, 3>::default(),
+            layers::Bias1d::<f32, 3>::default(),
+            layers::Activation::<f32>::Relu,
+        );
+        let mut rng = SmallRng::seed_from_u64(1);
+        network.rand_params(&mut rng, 1.0).unwrap();
+
+        for x in network.0.weights.iter().flatten() {
+            assert!(*x != 0.0);
+        }
+        for x in network.1.bias.iter() {
+            assert!(*x != 0.0);
+        }
     }
 
     #[test]

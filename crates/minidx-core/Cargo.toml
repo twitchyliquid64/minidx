@@ -7,3 +7,4 @@ license = "MIT OR Apache-2.0"
 [dependencies]
 num-traits.workspace = true
 rand.workspace = true
+rand_distr.workspace = true

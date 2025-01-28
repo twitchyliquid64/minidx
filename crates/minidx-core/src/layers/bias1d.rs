@@ -46,6 +46,20 @@ impl<E: Dtype, const I: usize> crate::RevModule<[E; I]> for Bias1d<E, I> {
     }
 }
 
+impl<E: Dtype, const I: usize> crate::ResetParams for Bias1d<E, I> {
+    fn rand_params<RNG: rand::Rng>(
+        &mut self,
+        rng: &mut RNG,
+        scale: f32,
+    ) -> Result<(), crate::Error> {
+        self.bias.iter_mut().for_each(|b| {
+            let s: f32 = rng.sample::<f32, _>(rand_distr::StandardNormal) * scale;
+            *b = E::from_f32(s).unwrap();
+        });
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

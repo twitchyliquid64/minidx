@@ -95,6 +95,16 @@ impl<E: Float, const I: usize> crate::RevModule<[E; I]> for Activation<E> {
     }
 }
 
+impl<E: Float> crate::ResetParams for Activation<E> {
+    fn rand_params<RNG: rand::Rng>(
+        &mut self,
+        _rng: &mut RNG,
+        _scale: f32,
+    ) -> Result<(), crate::Error> {
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

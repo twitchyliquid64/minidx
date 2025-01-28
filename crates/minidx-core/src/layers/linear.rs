@@ -143,6 +143,22 @@ impl<E: Dtype, const I: usize, const O: usize> crate::RevModule<[E; I]> for Dens
     }
 }
 
+impl<E: Dtype, const I: usize, const O: usize> crate::ResetParams for Dense<E, I, O> {
+    fn rand_params<RNG: rand::Rng>(
+        &mut self,
+        rng: &mut RNG,
+        scale: f32,
+    ) -> Result<(), crate::Error> {
+        self.weights.iter_mut().for_each(|r| {
+            r.iter_mut().for_each(|w| {
+                let s: f32 = rng.sample::<f32, _>(rand_distr::StandardNormal) * scale;
+                *w = E::from_f32(s).unwrap();
+            })
+        });
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
