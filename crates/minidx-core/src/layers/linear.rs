@@ -161,9 +161,14 @@ impl<E: Dtype, const I: usize, const O: usize> crate::ResetParams for Dense<E, I
         rng: &mut RNG,
         scale: f32,
     ) -> Result<(), crate::Error> {
+        // Xavier/Glorot Initialization: initial values from a distribution with
+        // zero mean and a variance of 2 / (inp + outp).
+        // Can use either normal or uniform distribution, we use normal for now.
+        let normal = rand_distr::Normal::new(0.0, 2.0 / (I as f32 + O as f32).sqrt()).unwrap();
+
         self.weights.iter_mut().for_each(|r| {
             r.iter_mut().for_each(|w| {
-                let s: f32 = rng.sample::<f32, _>(rand_distr::StandardNormal) * scale;
+                let s: f32 = rng.sample::<f32, _>(normal) * scale;
                 *w = E::from_f32(s).unwrap();
             })
         });

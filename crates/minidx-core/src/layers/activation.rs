@@ -94,7 +94,7 @@ impl<E: Float, const I: usize> crate::RevModule<[E; I]> for Activation<E> {
         (grads, ())
     }
 
-    fn apply(&mut self, updates: Self::SelfGrads, scalar: f32) -> Result<(), crate::Error> {
+    fn apply(&mut self, _updates: Self::SelfGrads, scalar: f32) -> Result<(), crate::Error> {
         Ok(())
     }
 }

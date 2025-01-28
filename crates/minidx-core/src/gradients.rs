@@ -156,16 +156,16 @@ mod tests {
 
     #[test]
     fn test_grad_into_iter() {
-        let mut grads = [42.0f32; 2];
+        let grads = [42.0f32; 2];
         assert_eq!(vec![42.0, 42.0], grads.into_grads().collect::<Vec<_>>());
 
-        let mut grads = [[42.0f32, 0.0, 69.0]; 2];
+        let grads = [[42.0f32, 0.0, 69.0]; 2];
         assert_eq!(
             vec![42.0, 0.0, 69.0, 42.0, 0.0, 69.0],
             grads.into_grads().collect::<Vec<_>>()
         );
 
-        let mut grads = ([42.0f32; 2], [42.0f32; 3]);
+        let grads = ([42.0f32; 2], [42.0f32; 3]);
         assert_eq!(
             vec![42.0, 42.0, 42.0, 42.0, 42.0],
             grads.into_grads().collect::<Vec<_>>()

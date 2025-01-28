@@ -59,8 +59,13 @@ impl<E: Dtype, const I: usize> crate::ResetParams for Bias1d<E, I> {
         rng: &mut RNG,
         scale: f32,
     ) -> Result<(), crate::Error> {
+        // Xavier/Glorot initialization vibes, but scaled down a ton for bias initialization.
+        // (Unlike dense layers, biases are still learned from zero parameters)
+        let stddev = 1.0 / ((I * I) as f32 * 64.0).sqrt();
+        let normal = rand_distr::Normal::new(0.0, stddev).unwrap();
+
         self.bias.iter_mut().for_each(|b| {
-            let s: f32 = rng.sample::<f32, _>(rand_distr::StandardNormal) * scale;
+            let s: f32 = rng.sample::<f32, _>(normal) * scale;
             *b = E::from_f32(s).unwrap();
         });
         Ok(())
