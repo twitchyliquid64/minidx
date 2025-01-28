@@ -93,6 +93,10 @@ impl<E: Float, const I: usize> crate::RevModule<[E; I]> for Activation<E> {
 
         (grads, ())
     }
+
+    fn apply(&mut self, updates: Self::SelfGrads, scalar: f32) -> Result<(), crate::Error> {
+        Ok(())
+    }
 }
 
 impl<E: Float> crate::ResetParams for Activation<E> {

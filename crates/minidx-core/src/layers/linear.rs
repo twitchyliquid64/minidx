@@ -141,6 +141,18 @@ impl<E: Dtype, const I: usize, const O: usize> crate::RevModule<[E; I]> for Dens
             Dense::gradients_wrt_weights(self, inputs, grads_wrt_output),
         )
     }
+
+    fn apply(&mut self, updates: Self::SelfGrads, scalar: f32) -> Result<(), crate::Error> {
+        for (o, i) in self
+            .weights
+            .iter_mut()
+            .flatten()
+            .zip(updates.into_iter().flatten())
+        {
+            *o += i * E::from_f32(scalar).unwrap();
+        }
+        Ok(())
+    }
 }
 
 impl<E: Dtype, const I: usize, const O: usize> crate::ResetParams for Dense<E, I, O> {

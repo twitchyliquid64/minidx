@@ -35,6 +35,10 @@ pub trait RevModule<X>: Module<X> {
         inputs: &X,
         grads_wrt_output: &<Self as Module<X>>::Output,
     ) -> (X, Self::SelfGrads);
+
+    /// Applies a gradient update step: adding product of the provided gradients and
+    /// the scalar to the parameters.
+    fn apply(&mut self, updates: Self::SelfGrads, scalar: f32) -> Result<(), Error>;
 }
 
 /// Some sequential computation that consumes `Input` and produces [Module::Output],
@@ -78,6 +82,10 @@ pub trait BackpropModule<X>: TracedModule<X> {
         trace: &<Self as TracedModule<X>>::Trace,
         grads_wrt_output: <Self as Module<X>>::Output,
     ) -> (X, Self::SelfGrads);
+
+    /// Applies a gradient update step: adding product of the provided gradients and
+    /// the scalar to the parameters.
+    fn update(&mut self, updates: Self::SelfGrads, scalar: f32) -> Result<(), Error>;
 }
 
 impl<Input, M: TracedModule<Input, Trace = Input> + RevModule<Input> + BaseModule>
@@ -91,6 +99,10 @@ impl<Input, M: TracedModule<Input, Trace = Input> + RevModule<Input> + BaseModul
         grads_wrt_output: <M as Module<Input>>::Output,
     ) -> (Input, Self::SelfGrads) {
         M::reverse(self, trace, &grads_wrt_output)
+    }
+
+    fn update(&mut self, updates: Self::SelfGrads, scalar: f32) -> Result<(), Error> {
+        M::apply(self, updates, scalar)
     }
 }
 
@@ -175,6 +187,11 @@ impl<Input, M: BackpropModule<Input, SelfGrads = <M as TracedModule<Input>>::Tra
         let (next_grads, updates) = self.0.backprop(&trace.0, grads_wrt_output);
         (next_grads, (updates,))
     }
+
+    fn update(&mut self, updates: Self::SelfGrads, scalar: f32) -> Result<(), Error> {
+        self.0.update(updates.0, scalar)?;
+        Ok(())
+    }
 }
 
 impl<Input, M1: BackpropModule<Input>, M2: BackpropModule<M1::Output>> BackpropModule<Input>
@@ -193,6 +210,12 @@ impl<Input, M1: BackpropModule<Input>, M2: BackpropModule<M1::Output>> BackpropM
         let (next_grads, u2) = self.1.backprop(&trace.1, grads_wrt_output);
         let (next_grads, u1) = self.0.backprop(&trace.0, next_grads);
         (next_grads, (u1, u2))
+    }
+
+    fn update(&mut self, updates: Self::SelfGrads, scalar: f32) -> Result<(), Error> {
+        self.0.update(updates.0, scalar)?;
+        self.1.update(updates.1, scalar)?;
+        Ok(())
     }
 }
 
@@ -218,6 +241,13 @@ impl<
         let (next_grads, u2) = self.1.backprop(&trace.1, next_grads);
         let (next_grads, u1) = self.0.backprop(&trace.0, next_grads);
         (next_grads, (u1, u2, u3))
+    }
+
+    fn update(&mut self, updates: Self::SelfGrads, scalar: f32) -> Result<(), Error> {
+        self.0.update(updates.0, scalar)?;
+        self.1.update(updates.1, scalar)?;
+        self.2.update(updates.2, scalar)?;
+        Ok(())
     }
 }
 
@@ -246,6 +276,14 @@ impl<
         let (next_grads, u2) = self.1.backprop(&trace.1, next_grads);
         let (next_grads, u1) = self.0.backprop(&trace.0, next_grads);
         (next_grads, (u1, u2, u3, u4))
+    }
+
+    fn update(&mut self, updates: Self::SelfGrads, scalar: f32) -> Result<(), Error> {
+        self.0.update(updates.0, scalar)?;
+        self.1.update(updates.1, scalar)?;
+        self.2.update(updates.2, scalar)?;
+        self.3.update(updates.3, scalar)?;
+        Ok(())
     }
 }
 
@@ -278,13 +316,22 @@ impl<
         let (next_grads, u1) = self.0.backprop(&trace.0, next_grads);
         (next_grads, (u1, u2, u3, u4, u5))
     }
+
+    fn update(&mut self, updates: Self::SelfGrads, scalar: f32) -> Result<(), Error> {
+        self.0.update(updates.0, scalar)?;
+        self.1.update(updates.1, scalar)?;
+        self.2.update(updates.2, scalar)?;
+        self.3.update(updates.3, scalar)?;
+        self.4.update(updates.4, scalar)?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::rngs::SmallRng;
     use rand::SeedableRng;
+    use rand::{rngs::SmallRng, Rng};
 
     #[test]
     fn test_module_forward() {
@@ -385,5 +432,34 @@ mod tests {
         let (grad_wrt_input, gradient_updates) = network.backprop(&trace, [0.0, 0.0]);
         assert_eq!(grad_wrt_input, [0.0, 0.0]);
         assert_eq!(gradient_updates, ());
+    }
+
+    #[test]
+    fn test_basic_train() {
+        let mut network = (
+            layers::Dense::<f32, 1, 2>::default(),
+            layers::Dense::<f32, 2, 2>::default(),
+        );
+        let mut rng = SmallRng::seed_from_u64(42);
+        network.rand_params(&mut rng, 0.5).unwrap();
+
+        for i in 0..9001 {
+            let input = rng.random_range(-20.0..20.0);
+            let target = [-input, input];
+            let (out, trace) = network.traced_forward([input]).unwrap();
+            let loss = loss::mse(&out, &target);
+            // println!(
+            //     "{}: input={:}, got={:?}\n\tloss={:?}, weights={:?} {:?}",
+            //     i, input, out, loss, &network.0.weights, &network.1.weights
+            // );
+            let (_, gradient_updates) = network.backprop(&trace, target.clone());
+            network
+                .update(gradient_updates, loss * 1.0e-8)
+                .expect("updated failed");
+        }
+
+        let out = network.forward(&[1.0]).unwrap();
+        let loss = loss::mse(&out, &[-1.0, 1.0]);
+        assert!(loss < 0.1);
     }
 }
