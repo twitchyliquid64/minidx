@@ -109,6 +109,7 @@ impl NotMixedPrecision for usize {}
 /// Trait for floating-point numbers.
 pub trait Float: Dtype + std::ops::Neg<Output = Self> {
     fn exp(self) -> Self;
+    fn ln(self) -> Self;
     fn max(self, other: Self) -> Self;
 }
 
@@ -116,6 +117,10 @@ impl Float for f32 {
     #[inline(always)]
     fn exp(self) -> Self {
         f32::exp(self)
+    }
+    #[inline(always)]
+    fn ln(self) -> Self {
+        f32::ln(self)
     }
     #[inline(always)]
     fn max(self, other: Self) -> Self {
@@ -126,6 +131,10 @@ impl Float for f64 {
     #[inline(always)]
     fn exp(self) -> Self {
         f64::exp(self)
+    }
+    #[inline(always)]
+    fn ln(self) -> Self {
+        f64::ln(self)
     }
     #[inline(always)]
     fn max(self, other: Self) -> Self {

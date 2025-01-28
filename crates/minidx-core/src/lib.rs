@@ -6,6 +6,8 @@ pub use shapes::*;
 mod iterate;
 pub(crate) use iterate::*;
 
+mod loss;
+
 pub mod layers;
 
 pub type Error = ();
