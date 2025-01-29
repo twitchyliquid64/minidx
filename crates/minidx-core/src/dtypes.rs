@@ -111,6 +111,7 @@ pub trait Float: Dtype + std::ops::Neg<Output = Self> {
     const SMOL: Self;
     fn exp(self) -> Self;
     fn ln(self) -> Self;
+    fn sqrt(self) -> Self;
     fn min(self, other: Self) -> Self;
     fn max(self, other: Self) -> Self;
 }
@@ -125,6 +126,10 @@ impl Float for f32 {
     #[inline(always)]
     fn ln(self) -> Self {
         f32::ln(self)
+    }
+    #[inline(always)]
+    fn sqrt(self) -> Self {
+        f32::sqrt(self)
     }
     #[inline(always)]
     fn min(self, other: Self) -> Self {
@@ -145,6 +150,10 @@ impl Float for f64 {
     #[inline(always)]
     fn ln(self) -> Self {
         f64::ln(self)
+    }
+    #[inline(always)]
+    fn sqrt(self) -> Self {
+        f64::sqrt(self)
     }
     #[inline(always)]
     fn min(self, other: Self) -> Self {
