@@ -26,7 +26,7 @@ pub trait RevModule<X>: Module<X> {
 
     /// Applies a gradient update step: adding product of the provided gradients and
     /// the scalar to the parameters.
-    fn apply(&mut self, updates: Self::SelfGrads, scalar: f32) -> Result<(), Error>;
+    fn apply(&mut self, updates: Self::SelfGrads) -> Result<(), Error>;
 }
 
 /// Some sequential computation that consumes `Input` and produces [Module::Output],
@@ -73,7 +73,7 @@ pub trait BackpropModule<X>: TracedModule<X> {
 
     /// Applies a gradient update step: adding product of the provided gradients and
     /// the scalar to the parameters.
-    fn update(&mut self, updates: Self::SelfGrads, scalar: f32) -> Result<(), Error>;
+    fn update(&mut self, updates: Self::SelfGrads) -> Result<(), Error>;
 }
 
 impl<Input, M: TracedModule<Input, Trace = Input> + RevModule<Input> + BaseModule>
@@ -89,8 +89,8 @@ impl<Input, M: TracedModule<Input, Trace = Input> + RevModule<Input> + BaseModul
         M::reverse(self, trace, &grads_wrt_output)
     }
 
-    fn update(&mut self, updates: Self::SelfGrads, scalar: f32) -> Result<(), Error> {
-        M::apply(self, updates, scalar)
+    fn update(&mut self, updates: Self::SelfGrads) -> Result<(), Error> {
+        M::apply(self, updates)
     }
 }
 
@@ -176,8 +176,8 @@ impl<Input, M: BackpropModule<Input, SelfGrads = <M as TracedModule<Input>>::Tra
         (next_grads, (updates,))
     }
 
-    fn update(&mut self, updates: Self::SelfGrads, scalar: f32) -> Result<(), Error> {
-        self.0.update(updates.0, scalar)?;
+    fn update(&mut self, updates: Self::SelfGrads) -> Result<(), Error> {
+        self.0.update(updates.0)?;
         Ok(())
     }
 }
@@ -200,9 +200,9 @@ impl<Input, M1: BackpropModule<Input>, M2: BackpropModule<M1::Output>> BackpropM
         (next_grads, (u1, u2))
     }
 
-    fn update(&mut self, updates: Self::SelfGrads, scalar: f32) -> Result<(), Error> {
-        self.0.update(updates.0, scalar)?;
-        self.1.update(updates.1, scalar)?;
+    fn update(&mut self, updates: Self::SelfGrads) -> Result<(), Error> {
+        self.0.update(updates.0)?;
+        self.1.update(updates.1)?;
         Ok(())
     }
 }
@@ -231,10 +231,10 @@ impl<
         (next_grads, (u1, u2, u3))
     }
 
-    fn update(&mut self, updates: Self::SelfGrads, scalar: f32) -> Result<(), Error> {
-        self.0.update(updates.0, scalar)?;
-        self.1.update(updates.1, scalar)?;
-        self.2.update(updates.2, scalar)?;
+    fn update(&mut self, updates: Self::SelfGrads) -> Result<(), Error> {
+        self.0.update(updates.0)?;
+        self.1.update(updates.1)?;
+        self.2.update(updates.2)?;
         Ok(())
     }
 }
@@ -266,11 +266,11 @@ impl<
         (next_grads, (u1, u2, u3, u4))
     }
 
-    fn update(&mut self, updates: Self::SelfGrads, scalar: f32) -> Result<(), Error> {
-        self.0.update(updates.0, scalar)?;
-        self.1.update(updates.1, scalar)?;
-        self.2.update(updates.2, scalar)?;
-        self.3.update(updates.3, scalar)?;
+    fn update(&mut self, updates: Self::SelfGrads) -> Result<(), Error> {
+        self.0.update(updates.0)?;
+        self.1.update(updates.1)?;
+        self.2.update(updates.2)?;
+        self.3.update(updates.3)?;
         Ok(())
     }
 }
@@ -305,12 +305,12 @@ impl<
         (next_grads, (u1, u2, u3, u4, u5))
     }
 
-    fn update(&mut self, updates: Self::SelfGrads, scalar: f32) -> Result<(), Error> {
-        self.0.update(updates.0, scalar)?;
-        self.1.update(updates.1, scalar)?;
-        self.2.update(updates.2, scalar)?;
-        self.3.update(updates.3, scalar)?;
-        self.4.update(updates.4, scalar)?;
+    fn update(&mut self, updates: Self::SelfGrads) -> Result<(), Error> {
+        self.0.update(updates.0)?;
+        self.1.update(updates.1)?;
+        self.2.update(updates.2)?;
+        self.3.update(updates.3)?;
+        self.4.update(updates.4)?;
         Ok(())
     }
 }

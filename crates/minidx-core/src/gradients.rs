@@ -1,4 +1,5 @@
 use crate::{Dtype, Unit};
+use num_traits::FromPrimitive;
 
 /// The set of gradients that describe some movement in parameters of a module.
 pub trait Gradients: Clone + std::fmt::Debug {
@@ -20,7 +21,7 @@ pub trait Gradients: Clone + std::fmt::Debug {
     fn merge(&mut self, other: Self, weight: f32) {
         assert!(weight >= 0.0);
         assert!(weight <= 1.0);
-        let weight: Self::Concrete = num_traits::FromPrimitive::from_f32(weight).unwrap();
+        let weight: Self::Concrete = Self::Concrete::from_f32(weight).unwrap();
 
         self.grad_iter_mut()
             .zip(other.into_grads())
@@ -28,6 +29,14 @@ pub trait Gradients: Clone + std::fmt::Debug {
                 use std::ops::{Mul, Sub};
                 *g = Self::Concrete::ONE.sub(weight).mul(*g) + weight.mul(o);
             });
+    }
+
+    /// Scales each gradient by the given constant.
+    ///
+    /// This method can be used to modulate gradient updates by some loss value and learning rate.
+    fn scale(&mut self, s: f32) {
+        self.grad_iter_mut()
+            .for_each(|g| *g *= Self::Concrete::from_f32(s).unwrap());
     }
 }
 

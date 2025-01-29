@@ -41,14 +41,13 @@ mod tests {
             //     "{}: loss={:?}, input={:}, got={:?}\n\tweights={:?} {:?}",
             //     _i, loss, input, out, &network.0.weights, &network.1.weights
             // );
-            let (_, gradient_updates) = network.backprop(&trace, target.clone());
+            let (_, mut gradient_updates) = network.backprop(&trace, target.clone());
             // println!(
             //     "\tupdates={:?}",
             //     Gradients::grad_iter(&gradient_updates).collect::<Vec<_>>(),
             // );
-            network
-                .update(gradient_updates, loss * 1.0e-8)
-                .expect("updated failed");
+            gradient_updates.scale(loss * 1.0e-8);
+            network.update(gradient_updates).expect("updated failed");
         }
 
         let out = network.forward(&[1.0]).unwrap();

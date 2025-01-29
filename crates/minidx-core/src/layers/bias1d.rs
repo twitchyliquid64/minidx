@@ -45,9 +45,9 @@ impl<E: Dtype, const I: usize> crate::RevModule<[E; I]> for Bias1d<E, I> {
         (grads_wrt_output.clone(), grads_wrt_output.clone())
     }
 
-    fn apply(&mut self, updates: Self::SelfGrads, scalar: f32) -> Result<(), crate::Error> {
+    fn apply(&mut self, updates: Self::SelfGrads) -> Result<(), crate::Error> {
         for (o, i) in self.bias.iter_mut().zip(updates.into_iter()) {
-            *o += i * E::from_f32(scalar).unwrap();
+            *o += i;
         }
         Ok(())
     }
