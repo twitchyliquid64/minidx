@@ -12,31 +12,48 @@ mod modules;
 pub use modules::*;
 
 pub mod loss;
+use loss::DiffLoss;
 
 pub mod layers;
 
 pub type Error = ();
 
-/// Computes the cosine similarity between two arrays of the same shape.
-///
-/// NB: Cosine distance is 1 - similarity.
-fn cosine_similarity<
-    P: Float + std::iter::Sum + std::fmt::Display,
-    E: Float + num_traits::AsPrimitive<P>,
-    const N: usize,
->(
-    a: &[E; N],
-    b: &[E; N],
-) -> Option<P> {
-    let dot_product: P = a.iter().zip(b.iter()).map(|(x, y)| x.as_() * y.as_()).sum();
-    let magnitude_a: P = a.iter().map(|x| x.as_() * x.as_()).sum::<P>().sqrt();
-    let magnitude_b: P = b.iter().map(|x| x.as_() * x.as_()).sum::<P>().sqrt();
+/// Describes the basic set of parameters used in training.
+pub struct TrainParams {
+    pub lr: f32,
+}
 
-    if magnitude_a == P::default() || magnitude_b == P::default() {
-        return None;
+impl Default for TrainParams {
+    fn default() -> Self {
+        Self { lr: 1.0e-8 }
     }
+}
 
-    Some(dot_product / (magnitude_a * magnitude_b))
+/// Does a training step, updating a network using a pair of inputs and outputs.
+pub fn train_step<Input, Network: BackpropModule<Input>>(
+    params: &TrainParams,
+    network: &mut Network,
+    input: Input,
+    output: Network::Output,
+) where
+    Network::Output: DiffLoss,
+    <Network as modules::BackpropModule<Input>>::SelfGrads: Gradients,
+    <<Network as modules::Module<Input>>::Output as loss::DiffLoss>::Output:
+        std::ops::Mul<f32, Output = f32>,
+{
+    let (out, trace) = network.traced_forward(input).unwrap();
+    let loss = out.mse(&output);
+    // println!(
+    //     "{}: loss={:?}, input={:}, got={:?}\n\tweights={:?} {:?}",
+    //     _i, loss, input, out, &network.0.weights, &network.1.weights
+    // );
+    let (_, mut gradient_updates) = network.backprop(&trace, output.clone());
+    gradient_updates.scale(loss * params.lr);
+    // println!(
+    //     "\tupdates={:?}",
+    //     Gradients::grad_iter(&gradient_updates).collect::<Vec<_>>(),
+    // );
+    network.update(gradient_updates).expect("update failed");
 }
 
 #[cfg(test)]
@@ -46,7 +63,7 @@ mod tests {
     use rand::{rngs::SmallRng, Rng};
 
     #[test]
-    fn test_basic_train() {
+    fn test_manual_train() {
         const LR: f32 = 3.0e-8;
         let mut network = (
             layers::Dense::<f32, 1, 2>::default(),
@@ -59,7 +76,7 @@ mod tests {
             let input = rng.random_range(-20.0..20.0);
             let target = [-input, input];
             let (out, trace) = network.traced_forward([input]).unwrap();
-            let loss = loss::mse(&out, &target);
+            let loss = out.mse(&target);
             // println!(
             //     "{}: loss={:?}, input={:}, got={:?}\n\tweights={:?} {:?}",
             //     _i, loss, input, out, &network.0.weights, &network.1.weights
@@ -74,18 +91,28 @@ mod tests {
         }
 
         let out = network.forward(&[1.0]).unwrap();
-        let loss = loss::mse(&out, &[-1.0, 1.0]);
+        let loss = out.mse(&[-1.0, 1.0]);
         assert!(loss < 0.1);
     }
 
     #[test]
-    fn test_cosine_similarity() {
-        assert_eq!(cosine_similarity::<f64, _, 1>(&[0.0f32], &[1.0f32]), None);
-
-        assert_eq!(cosine_similarity(&[0.1f32], &[99999.0f32]), Some(1.0f32));
-        assert_eq!(
-            cosine_similarity(&[1.0f32, 3.0f32], &[1.0f32, 3.0f32]),
-            Some(1.0f32)
+    fn test_train_step() {
+        let mut network = (
+            layers::Dense::<f32, 1, 2>::default(),
+            layers::Dense::<f32, 2, 2>::default(),
         );
+        let mut rng = SmallRng::seed_from_u64(675);
+        network.rand_params(&mut rng, 0.5).unwrap();
+
+        for _i in 0..9001 {
+            let input = rng.random_range(-10.0..10.0);
+            let target = [-input, input];
+            let params = TrainParams::default();
+            train_step(&params, &mut network, [input], target);
+        }
+
+        let out = network.forward(&[1.0]).unwrap();
+        let loss = out.mse(&[-1.0, 1.0]);
+        assert!(loss < 0.1);
     }
 }
