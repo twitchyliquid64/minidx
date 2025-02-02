@@ -1,8 +1,10 @@
 [workspace]
-members = ["crates/minidx-core"]
+members = ["crates/minidx-core", "crates/minidx"]
 resolver = "2"
 
 [workspace.dependencies]
 num-traits = { version = "0.2.17", default-features = false }
 rand = { version = "0.9.0", default-features = false, features = ["std_rng", "small_rng"] }
 rand_distr = "0.5"
+
+minidx-core = { version = "0.1.0", path = "crates/minidx-core"}
