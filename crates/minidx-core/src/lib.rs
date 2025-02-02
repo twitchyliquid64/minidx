@@ -195,4 +195,43 @@ mod tests {
         println!("got={:?}, want={:?}: loss={}", out, func(inp), loss);
         assert!(loss < 0.2);
     }
+
+    #[test]
+    fn test_residual() {
+        let mut network = (
+            layers::Dense::<f32, 1, 2>::default(),
+            layers::Dense::<f32, 2, 1>::default(),
+            layers::Residual {
+                module: (
+                    layers::Dense::<f32, 1, 3>::default(),
+                    layers::Dense::<f32, 3, 1>::default(),
+                    layers::Bias1d::<f32, 1>::default(),
+                ),
+                ..layers::Residual::default()
+            },
+        );
+        let mut rng = SmallRng::seed_from_u64(23432);
+        network.rand_params(&mut rng, 1.0).unwrap();
+
+        let func = |inp| inp - 2.2;
+
+        let params = TrainParams { lr: 2.0e-4 };
+        for _i in 0..20000 {
+            let input = rng.random_range(-5.0..5.0);
+            let target = [func(input)];
+            train_step(
+                &params,
+                &mut network,
+                |got, want| (got.mse(want), got.mse_input_grads(want)),
+                [input],
+                target,
+            );
+        }
+
+        let inp = 3.2;
+        let out = network.forward(&[inp]).unwrap();
+        let loss = out.mse(&[func(inp)]);
+        println!("got={:?}, want={:?}: loss={}", out, func(inp), loss);
+        assert!(loss < 0.1);
+    }
 }

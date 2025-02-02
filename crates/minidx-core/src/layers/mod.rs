@@ -8,3 +8,5 @@ mod linear;
 pub use linear::Dense;
 mod softmax;
 pub use softmax::Softmax;
+mod residual;
+pub use residual::Residual;
