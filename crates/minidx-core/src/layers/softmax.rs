@@ -1,0 +1,107 @@
+use crate::Float;
+
+/// A softmax activation layer with no trainable parameters.
+#[derive(Clone, Debug)]
+pub struct Softmax {}
+
+impl Softmax {
+    #[inline]
+    fn forward<E: Float, const I: usize>(&self, input: &[E; I]) -> [E; I] {
+        let mut out: [E; I] = [E::default(); I];
+
+        let max_val = input.iter().fold(E::NEG_INFINITY, |l, r| E::max(l, *r));
+
+        // Compute exponential of difference between x and max value.
+        out.iter_mut().zip(input.iter()).for_each(|(o, &x)| {
+            *o = (x - max_val).exp();
+        });
+
+        // Normalize
+        let sum_exp = out.iter().fold(E::default(), |a, x| a + *x);
+        out.iter_mut().for_each(|o| *o /= sum_exp);
+
+        out
+    }
+
+    #[inline]
+    fn backprop<E: Float, const I: usize>(
+        &self,
+        input: &[E; I],
+        grads_wrt_output: &[E; I],
+    ) -> [E; I] {
+        let output = self.forward(input);
+
+        let mut out: [E; I] = [E::default(); I];
+        out.iter_mut().enumerate().for_each(|(i, o)| {
+            let mut sum = E::default();
+            for j in 0..I {
+                let kronecker = if i == j { E::ONE } else { E::default() };
+                sum += (kronecker - output[j]) * grads_wrt_output[j];
+            }
+            *o = output[i] * sum;
+        });
+
+        out
+    }
+}
+
+impl crate::BaseModule for Softmax {}
+
+impl<E: Float, const I: usize> crate::Module<[E; I]> for Softmax {
+    type Output = [E; I];
+
+    fn forward(&mut self, x: &[E; I]) -> Result<Self::Output, crate::Error> {
+        Ok(Softmax::forward(self, x))
+    }
+}
+
+impl<E: Float, const I: usize> crate::RevModule<[E; I]> for Softmax {
+    type SelfGrads = ();
+
+    fn reverse(&mut self, inputs: &[E; I], grads_wrt_output: &[E; I]) -> ([E; I], Self::SelfGrads) {
+        (self.backprop(inputs, grads_wrt_output), ())
+    }
+
+    fn apply(&mut self, _updates: Self::SelfGrads) -> Result<(), crate::Error> {
+        Ok(())
+    }
+}
+
+impl crate::ResetParams for Softmax {
+    fn rand_params<RNG: rand::Rng>(
+        &mut self,
+        _rng: &mut RNG,
+        _scale: f32,
+    ) -> Result<(), crate::Error> {
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_softmax_zeros() {
+        assert_eq!([0.5, 0.5f32], (Softmax {}).forward(&[0.0, 0.0f32]));
+        assert_eq!(
+            [0.25, 0.25, 0.25, 0.25f32],
+            (Softmax {}).forward(&[0.0, 0.0, 0.0, 0.0f32])
+        );
+    }
+
+    #[test]
+    fn test_softmax() {
+        let [l, r] = (Softmax {}).forward(&[0.01, 1.0f32]);
+        assert!(l < r);
+        assert!(l < r / 2.0);
+        assert!(l > r / 100.0);
+    }
+
+    #[test]
+    fn test_softmax_backprop() {
+        let [lg, rg] = (Softmax {}).backprop(&[0.01, 1.0f32], &[1.0, -1.0f32]);
+        assert!(lg > rg);
+        // TODO: Needs moar checking
+    }
+}
