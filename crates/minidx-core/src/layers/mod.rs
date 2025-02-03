@@ -10,3 +10,5 @@ mod softmax;
 pub use softmax::Softmax;
 mod residual;
 pub use residual::Residual;
+mod gate;
+pub use gate::GLU;
