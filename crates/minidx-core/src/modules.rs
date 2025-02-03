@@ -74,6 +74,18 @@ pub trait BackpropModule<X>: TracedModule<X> {
     /// Applies a gradient update step: adding product of the provided gradients and
     /// the scalar to the parameters.
     fn update(&mut self, updates: Self::SelfGrads) -> Result<(), Error>;
+
+    /// Initializes state which can be used to track momentum during training.
+    fn new_momentum(
+        &self,
+        params: crate::optimizers::TrainParams,
+        momentum_coefficient: f32,
+    ) -> crate::optimizers::Momentum<Self::SelfGrads>
+    where
+        <Self as BackpropModule<X>>::SelfGrads: Gradients,
+    {
+        crate::optimizers::Momentum::new(params, momentum_coefficient)
+    }
 }
 
 impl<Input, M: TracedModule<Input, Trace = Input> + RevModule<Input> + BaseModule>

@@ -11,26 +11,21 @@ pub use gradients::Gradients;
 mod modules;
 pub use modules::*;
 
-pub mod loss;
-
 pub mod layers;
+pub mod loss;
+pub mod optimizers;
+use optimizers::GradAdjuster;
 
 pub type Error = ();
 
-/// Describes the basic set of parameters used in training.
-pub struct TrainParams {
-    pub lr: f32,
-}
-
-impl Default for TrainParams {
-    fn default() -> Self {
-        Self { lr: 1.0e-8 }
-    }
-}
-
 /// Does a training step, updating a network using a pair of inputs and outputs.
-pub fn train_step<Input, LV: Float, Network: BackpropModule<Input>>(
-    params: &TrainParams,
+pub fn train_step<
+    Input,
+    LV: Float,
+    Network: BackpropModule<Input>,
+    GA: GradAdjuster<Network::SelfGrads>,
+>(
+    ga: &mut GA,
     network: &mut Network,
     loss: impl Fn(&Network::Output, &Network::Output) -> (LV, Network::Output),
     input: Input,
@@ -47,8 +42,8 @@ pub fn train_step<Input, LV: Float, Network: BackpropModule<Input>>(
 
     // println!("{:?}: loss_grads={:?}", lv, loss_grads);
 
-    let (_, mut gradient_updates) = network.backprop(&trace, loss_grads);
-    gradient_updates.scale(-lv * params.lr);
+    let (_, gradient_updates) = network.backprop(&trace, loss_grads);
+    let gradient_updates = ga.adjust(gradient_updates, lv.to_f32().unwrap());
     // println!("updates: {:?}\n", gradient_updates);
 
     network.update(gradient_updates).expect("update failed");
@@ -58,20 +53,21 @@ pub fn train_step<Input, LV: Float, Network: BackpropModule<Input>>(
 mod tests {
     use super::*;
     use loss::{DiffLoss, LogitLoss};
+    use optimizers::TrainParams;
     use rand::SeedableRng;
     use rand::{rngs::SmallRng, Rng};
 
     #[test]
     fn test_manual_train() {
-        const LR: f32 = 3.0e-8;
         let mut network = (
             layers::Dense::<f32, 1, 2>::default(),
             layers::Dense::<f32, 2, 2>::default(),
         );
+        let mut updater = network.new_momentum(TrainParams { lr: 3.0e-8 }, 0.2);
         let mut rng = SmallRng::seed_from_u64(42);
         network.rand_params(&mut rng, 0.5).unwrap();
 
-        for _i in 0..9001 {
+        for _i in 0..1900 {
             let input = rng.random_range(-20.0..20.0);
             let target = [-input, input];
             let (out, trace) = network.traced_forward([input]).unwrap();
@@ -80,13 +76,15 @@ mod tests {
             // NOTE: we should use the gradients WRT the loss as the input to
             // backprop, not the target.
             let (_, mut gradient_updates) = network.backprop(&trace, target.clone());
-            gradient_updates.scale(loss * LR);
 
-            network.update(gradient_updates).expect("update failed");
+            network
+                .update(updater.update(gradient_updates, -loss))
+                .expect("update failed");
         }
 
         let out = network.forward(&[1.0]).unwrap();
         let loss = out.mse(&[-1.0, 1.0]);
+        println!("got={:?}, want={:?}: loss={}", out, [-1.0, 1.0], loss);
         assert!(loss < 0.1);
     }
 
@@ -99,12 +97,12 @@ mod tests {
         let mut rng = SmallRng::seed_from_u64(765);
         network.rand_params(&mut rng, 0.1).unwrap();
 
-        let params = TrainParams { lr: 1.0e-6 };
+        let mut params = TrainParams { lr: 1.0e-6 };
         for _i in 0..300 {
             let input = rng.random_range(-20.0..20.0);
             let target = [-input, input];
             train_step(
-                &params,
+                &mut params,
                 &mut network,
                 |got, want| (got.mse(want), got.mse_input_grads(want)),
                 [input],
@@ -114,6 +112,34 @@ mod tests {
 
         let out = network.forward(&[1.0]).unwrap();
         let loss = out.mse(&[-1.0, 1.0]);
+        assert!(loss < 0.1);
+    }
+
+    #[test]
+    fn test_train_step_momentum() {
+        let mut network = (
+            layers::Dense::<f32, 1, 2>::default(),
+            layers::Dense::<f32, 2, 2>::default(),
+        );
+        let mut rng = SmallRng::seed_from_u64(765);
+        network.rand_params(&mut rng, 0.1).unwrap();
+
+        let mut updater = network.new_momentum(TrainParams { lr: 1.0e-6 }, 0.4);
+        for _i in 0..100 {
+            let input = rng.random_range(-20.0..20.0);
+            let target = [-input, input];
+            train_step(
+                &mut updater,
+                &mut network,
+                |got, want| (got.mse(want), got.mse_input_grads(want)),
+                [input],
+                target,
+            );
+        }
+
+        let out = network.forward(&[1.0]).unwrap();
+        let loss = out.mse(&[-1.0, 1.0]);
+        println!("got={:?}, want={:?}: loss={}", out, [-1.0, 1.0], loss);
         assert!(loss < 0.1);
     }
 
@@ -135,12 +161,12 @@ mod tests {
             [1.0 - r, r]
         };
 
-        let params = TrainParams { lr: 5.0e-1 };
+        let mut params = TrainParams { lr: 5.0e-1 };
         for _i in 0..9000 {
             let input = rng.random_range(-2.0..2.0);
             let target = func(input);
             train_step(
-                &params,
+                &mut params,
                 &mut network,
                 |got, want| (got.logit_bce(want), got.logit_bce_input_grads(want)),
                 [input],
@@ -176,12 +202,12 @@ mod tests {
             [1.0 - r, r]
         };
 
-        let params = TrainParams { lr: 5.0e-2 };
+        let mut params = TrainParams { lr: 5.0e-2 };
         for _i in 0..3000 {
             let input = rng.random_range(-2.0..2.0);
             let target = func(input);
             train_step(
-                &params,
+                &mut params,
                 &mut network,
                 |got, want| (got.logit_bce(want), got.logit_bce_input_grads(want)),
                 [input],
@@ -215,12 +241,12 @@ mod tests {
 
         let func = |inp| inp - 2.2;
 
-        let params = TrainParams { lr: 2.0e-4 };
+        let mut params = TrainParams { lr: 2.0e-4 };
         for _i in 0..20000 {
             let input = rng.random_range(-5.0..5.0);
             let target = [func(input)];
             train_step(
-                &params,
+                &mut params,
                 &mut network,
                 |got, want| (got.mse(want), got.mse_input_grads(want)),
                 [input],

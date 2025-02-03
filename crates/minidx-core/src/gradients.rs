@@ -38,6 +38,9 @@ pub trait Gradients: Clone + std::fmt::Debug {
         self.grad_iter_mut()
             .for_each(|g| *g *= Self::Concrete::from_f32(s).unwrap());
     }
+
+    /// Returns an empty gradient object
+    fn empty() -> Self;
 }
 
 impl Gradients for () {
@@ -54,6 +57,10 @@ impl Gradients for () {
     fn into_grads(self) -> impl Iterator<Item = Self::Concrete> {
         std::iter::IntoIterator::into_iter([0.0f32; 0])
     }
+
+    fn empty() -> Self {
+        ()
+    }
 }
 
 impl<E: Dtype, const L: usize> Gradients for [E; L] {
@@ -69,6 +76,10 @@ impl<E: Dtype, const L: usize> Gradients for [E; L] {
 
     fn into_grads(self) -> impl Iterator<Item = Self::Concrete> {
         std::iter::IntoIterator::into_iter(self)
+    }
+
+    fn empty() -> Self {
+        [E::default(); L]
     }
 }
 
@@ -87,6 +98,10 @@ impl<E: Dtype, const L1: usize, const L2: usize> Gradients for [[E; L2]; L1] {
         std::iter::IntoIterator::into_iter(self)
             .map(|a| std::iter::IntoIterator::into_iter(a))
             .flatten()
+    }
+
+    fn empty() -> Self {
+        [[E::default(); L2]; L1]
     }
 }
 
@@ -116,6 +131,12 @@ macro_rules! tuple_impls {
 		        self.0.into_grads()
 		        $(.chain(self.$idx.into_grads()))*
 		    }
+
+            fn empty() -> Self {
+                (
+                    $($name::empty(),)*
+                )
+            }
         }
     }
 }
