@@ -202,7 +202,7 @@ mod tests {
             [1.0 - r, r]
         };
 
-        let mut params = TrainParams { lr: 5.0e-2 };
+        let mut params = TrainParams { lr: 8.0e-2 };
         for _i in 0..3000 {
             let input = rng.random_range(-2.0..2.0);
             let target = func(input);
@@ -241,12 +241,12 @@ mod tests {
 
         let func = |inp| inp - 2.2;
 
-        let mut params = TrainParams { lr: 2.0e-4 };
+        let mut updater = network.new_momentum(TrainParams { lr: 1.0e-4 }, 0.3);
         for _i in 0..20000 {
             let input = rng.random_range(-5.0..5.0);
             let target = [func(input)];
             train_step(
-                &mut params,
+                &mut updater,
                 &mut network,
                 |got, want| (got.mse(want), got.mse_input_grads(want)),
                 [input],
@@ -277,8 +277,8 @@ mod tests {
 
     //     let func = |inp| inp - 2.2;
 
-    //     let mut updater = network.new_momentum(TrainParams { lr: 3.0e-4 }, 0.6);
-    //     for _i in 0..10000 {
+    //     let mut updater = network.new_momentum(TrainParams { lr: 5.0e-3 }, 0.1);
+    //     for _i in 0..1000 {
     //         let input = rng.random_range(-4.0..4.0);
     //         let target = [func(input)];
     //         train_step(

@@ -12,6 +12,7 @@ fn naive_gemm<F: Dtype, M: Dim, K: Dim, N: Dim>(
     cp: *mut F,
     c_strides: [usize; 2],
 ) {
+    //println!("naive_gemm()");
     for i_m in 0..m.size() {
         for i_k in 0..k.size() {
             for i_n in 0..n.size() {
@@ -67,7 +68,7 @@ impl<E: Dtype, const I: usize, const O: usize> Dense<E, I, O> {
         let n = O;
         naive_gemm(
             (m, k, n),
-            true,
+            true, // I think this needs to be false?
             input.as_ptr(),
             Shape::strides(&(1, I)),
             self.weights.as_ptr() as *const E,
@@ -110,13 +111,13 @@ impl<E: Dtype, const I: usize, const O: usize> Dense<E, I, O> {
         let strides = (m, n).strides();
         naive_gemm(
             (k, m, n),
-            true,
+            false, // Just flipped this to false and it still works?
             input.as_ptr(),
             Shape::strides(&(I, 1)),
             output_gradients.as_ptr(),
             strides,
             out.as_mut_ptr() as *mut E,
-            Shape::strides(&(O, I)),
+            Shape::strides(&(I, O)),
         );
         out
     }

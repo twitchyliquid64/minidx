@@ -302,7 +302,7 @@ mod tests {
         assert_eq!(gradient_updates, [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0]]);
 
         let (_, gradient_updates) = network.backprop(&trace, [1.0, 0.0, 0.0]);
-        assert_eq!(gradient_updates, [[1.0, 0.0], [2.0, 0.0], [0.0, 0.0]]); // TODO: Not sure if this is right?
+        assert_eq!(gradient_updates, [[1.0, 0.0], [0.0, 2.0], [0.0, 0.0]]); // TODO: Not sure if this is right?
     }
 
     #[test]

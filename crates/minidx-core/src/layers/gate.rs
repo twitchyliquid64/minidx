@@ -223,17 +223,22 @@ mod tests {
 
     #[test]
     fn test_backward_simple() {
-        let mut g = GLU::<f32, 1, 1>::default();
-        g.gate_connections.weights[0] = [0.5];
-        g.sig_connections.weights[0] = [1.0];
+        let mut g = GLU::<f32, 2, 1>::default();
+        g.gate_connections.weights = [[2.0, 1.0]];
+        g.gate_bias.bias[0] = -2.0;
+        g.sig_connections.weights = [[1.0, -1.0]];
+        g.sig_bias.bias[0] = 1.0;
 
-        let (out, trace) = g.traced_forward([2.0]).unwrap();
-        assert_eq!(out, [2.0]);
+        let (out, trace) = g.traced_forward([1.0, 2.0]).unwrap();
+        assert_eq!(out, [0.0]);
 
-        // the trace is the output of the sig chain and the gate chain
-        assert_eq!(trace.2, ([1.0], [2.0]));
+        // trace.2 = (gate_out, sig_out)
+        assert_eq!(trace.2, ([2.0], [0.0]));
 
-        let (out_grads, grads) = g.backprop(&trace, [1.0]);
-        assert_eq!(out, [2.0]);
+        // assume MSE loss, want=1 so loss=0.5 and dL/dY = -1.
+        let (out_grads, grads) = g.backprop(&trace, [-1.0]);
+        assert_eq!(out, [0.0]); // no gradient backwards as the gate was inactive
+        assert_eq!(grads.0, ([[0.0, 0.0]], [0.0], ())); // no gradient for gate as sig was inactive
+        assert_eq!(grads.1, ([[-2.0, -4.0]], [-2.0])); // activation was non-zero so gradients for gate
     }
 }
