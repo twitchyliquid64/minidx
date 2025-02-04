@@ -97,8 +97,8 @@ mod tests {
         let mut rng = SmallRng::seed_from_u64(765);
         network.rand_params(&mut rng, 0.1).unwrap();
 
-        let mut params = TrainParams { lr: 1.0e-6 };
-        for _i in 0..300 {
+        let mut params = TrainParams { lr: 1.0e-5 };
+        for _i in 0..200 {
             let input = rng.random_range(-20.0..20.0);
             let target = [-input, input];
             train_step(
@@ -124,8 +124,8 @@ mod tests {
         let mut rng = SmallRng::seed_from_u64(765);
         network.rand_params(&mut rng, 0.1).unwrap();
 
-        let mut updater = network.new_momentum(TrainParams { lr: 1.0e-6 }, 0.4);
-        for _i in 0..100 {
+        let mut updater = network.new_momentum(TrainParams { lr: 1.0e-5 }, 0.4);
+        for _i in 0..50 {
             let input = rng.random_range(-20.0..20.0);
             let target = [-input, input];
             train_step(
@@ -147,7 +147,12 @@ mod tests {
     fn test_train_step_softmax() {
         let mut network = (
             (
-                layers::Dense::<f32, 1, 2>::default(),
+                layers::Dense::<f32, 1, 4>::default(),
+                layers::Bias1d::<f32, 4>::default(),
+                layers::Activation::Relu,
+            ),
+            (
+                layers::Dense::<f32, 4, 2>::default(),
                 layers::Bias1d::<f32, 2>::default(),
                 layers::Activation::Relu,
             ),
@@ -161,8 +166,8 @@ mod tests {
             [1.0 - r, r]
         };
 
-        let mut params = TrainParams { lr: 5.0e-1 };
-        for _i in 0..9000 {
+        let mut params = TrainParams { lr: 8.0e-2 };
+        for _i in 0..5000 {
             let input = rng.random_range(-2.0..2.0);
             let target = func(input);
             train_step(
