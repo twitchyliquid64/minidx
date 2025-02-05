@@ -1,3 +1,4 @@
+use crate::optimizers::GradApplyer;
 use crate::{Error, Gradients};
 
 /// A unit of computation that consumes `Input` and produces [Module::Output].
@@ -26,7 +27,11 @@ pub trait RevModule<X>: Module<X> {
 
     /// Applies a gradient update step: adding product of the provided gradients and
     /// the scalar to the parameters.
-    fn apply(&mut self, updates: Self::SelfGrads) -> Result<(), Error>;
+    fn apply(
+        &mut self,
+        applyer: &mut impl GradApplyer,
+        updates: Self::SelfGrads,
+    ) -> Result<(), Error>;
 }
 
 /// Some sequential computation that consumes `Input` and produces [Module::Output],
@@ -73,7 +78,11 @@ pub trait BackpropModule<X>: TracedModule<X> {
 
     /// Applies a gradient update step: adding product of the provided gradients and
     /// the scalar to the parameters.
-    fn update(&mut self, updates: Self::SelfGrads) -> Result<(), Error>;
+    fn update(
+        &mut self,
+        applyer: &mut impl GradApplyer,
+        updates: Self::SelfGrads,
+    ) -> Result<(), Error>;
 
     /// Initializes state which can be used to track momentum during training.
     fn new_momentum(
@@ -101,8 +110,12 @@ impl<Input, M: TracedModule<Input, Trace = Input> + RevModule<Input> + BaseModul
         M::reverse(self, trace, &grads_wrt_output)
     }
 
-    fn update(&mut self, updates: Self::SelfGrads) -> Result<(), Error> {
-        M::apply(self, updates)
+    fn update(
+        &mut self,
+        applyer: &mut impl GradApplyer,
+        updates: Self::SelfGrads,
+    ) -> Result<(), Error> {
+        M::apply(self, applyer, updates)
     }
 }
 
@@ -193,8 +206,8 @@ macro_rules! backwd_tuple_impls {
                 (next_grads, ($($fwd_grads,)+))
             }
 
-            fn update(&mut self, updates: Self::SelfGrads) -> Result<(), Error> {
-                $(self.$idx.update(updates.$idx)?;)+
+            fn update(&mut self, applyer: &mut impl GradApplyer, updates: Self::SelfGrads) -> Result<(), Error> {
+                $(self.$idx.update(applyer, updates.$idx)?;)+
                 Ok(())
             }
 

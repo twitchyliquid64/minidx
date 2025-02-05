@@ -1,4 +1,4 @@
-use crate::Gradients;
+use crate::{Gradients, Unit};
 use num_traits::FromPrimitive;
 
 /// An object responsible for tweaking gradient updates, such as to
@@ -7,14 +7,57 @@ pub trait GradAdjuster<G: Gradients> {
     fn adjust(&mut self, gradient_updates: G, loss: f32) -> G;
 }
 
-/// Describes the basic set of parameters used in training.
+/// An object responsible for applying gradient updates, such as to
+/// add the gradient updates to the weights while performing regularization.
+pub trait GradApplyer {
+    fn apply<G: Gradients>(
+        &mut self,
+        gradient_updates: G,
+        weights: &mut G,
+    ) -> Result<(), crate::Error>;
+}
+
+/// Describes the basic set of parameters used in training. Implements
+/// optimizer traits, so it can be passed into training methods.
 pub struct TrainParams {
     pub lr: f32,
+    pub l1_reg: f32,
+    pub l2_reg: f32,
 }
 
 impl Default for TrainParams {
     fn default() -> Self {
-        Self { lr: 1.0e-8 }
+        Self {
+            lr: 1.0e-8,
+            l1_reg: 0.0,
+            l2_reg: 0.0,
+        }
+    }
+}
+
+impl TrainParams {
+    /// Constructs an object with the given training rate.
+    pub fn with_lr(lr: f32) -> Self {
+        Self {
+            lr,
+            ..Default::default()
+        }
+    }
+
+    /// Sets the l1 regularization weight, keeping all other parameters unaffected.
+    ///
+    /// This method can be chained in a builder-pattern kind of way.
+    pub fn and_l1(mut self, l1: f32) -> Self {
+        self.l1_reg = l1;
+        self
+    }
+
+    /// Sets the l2 regularization weight, keeping all other parameters unaffected.
+    ///
+    /// This method can be chained in a builder-pattern kind of way.
+    pub fn and_l2(mut self, l2: f32) -> Self {
+        self.l2_reg = l2;
+        self
     }
 }
 
@@ -26,7 +69,44 @@ impl<G: Gradients> GradAdjuster<G> for TrainParams {
     }
 }
 
-/// Tracks momentum state across epochs during training.
+impl GradApplyer for TrainParams {
+    fn apply<G: Gradients>(
+        &mut self,
+        gradient_updates: G,
+        weights: &mut G,
+    ) -> Result<(), crate::Error> {
+        weights
+            .grad_iter_mut()
+            .zip(gradient_updates.into_grads())
+            .for_each(|(w, u)| {
+                let reg_penalty = G::Concrete::from_f32(if self.l1_reg != 0.0 {
+                    if *w > G::Concrete::default() {
+                        self.l1_reg
+                    } else if *w < G::Concrete::default() {
+                        -self.l1_reg
+                    } else {
+                        0.0
+                    }
+                } else {
+                    0.0
+                })
+                .unwrap()
+                    + if self.l2_reg != 0.0 {
+                        (*w) * (G::Concrete::ONE + G::Concrete::ONE)
+                            * G::Concrete::from_f32(self.l2_reg).unwrap()
+                    } else {
+                        G::Concrete::default()
+                    };
+
+                *w += u - reg_penalty;
+            });
+        Ok(())
+    }
+}
+
+/// Implements momentum computation in addition to the basics provided by [TrainParams].
+///
+/// Implements optimizer traits, so it can be passed into training methods.
 pub struct Momentum<G: Gradients> {
     params: TrainParams,
     velocity: G,
@@ -47,7 +127,7 @@ impl<G: Gradients> Momentum<G> {
         }
     }
 
-    pub(crate) fn update(&mut self, gradient_updates: G, loss: f32) -> G {
+    fn update(&mut self, gradient_updates: G, loss: f32) -> G {
         let mc = G::Concrete::from_f32(self.momentum_coeff).unwrap();
         let loss = G::Concrete::from_f32(-loss * self.params.lr).unwrap();
 
@@ -66,5 +146,15 @@ impl<G: Gradients> Momentum<G> {
 impl<G: Gradients> GradAdjuster<G> for Momentum<G> {
     fn adjust(&mut self, gradient_updates: G, loss: f32) -> G {
         self.update(gradient_updates, loss)
+    }
+}
+
+impl<G: Gradients> GradApplyer for Momentum<G> {
+    fn apply<G2: Gradients>(
+        &mut self,
+        gradient_updates: G2,
+        weights: &mut G2,
+    ) -> Result<(), crate::Error> {
+        self.params.apply(gradient_updates, weights)
     }
 }

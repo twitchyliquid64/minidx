@@ -143,16 +143,12 @@ impl<E: Dtype, const I: usize, const O: usize> crate::RevModule<[E; I]> for Dens
         )
     }
 
-    fn apply(&mut self, updates: Self::SelfGrads) -> Result<(), crate::Error> {
-        for (o, i) in self
-            .weights
-            .iter_mut()
-            .flatten()
-            .zip(updates.into_iter().flatten())
-        {
-            *o += i;
-        }
-        Ok(())
+    fn apply(
+        &mut self,
+        applyer: &mut impl crate::optimizers::GradApplyer,
+        updates: Self::SelfGrads,
+    ) -> Result<(), crate::Error> {
+        applyer.apply(updates, &mut self.weights)
     }
 }
 

@@ -14,7 +14,7 @@ pub use modules::*;
 pub mod layers;
 pub mod loss;
 pub mod optimizers;
-use optimizers::GradAdjuster;
+use optimizers::{GradAdjuster, GradApplyer};
 
 pub type Error = ();
 
@@ -23,7 +23,7 @@ pub fn train_step<
     Input,
     LV: Float,
     Network: BackpropModule<Input>,
-    GA: GradAdjuster<Network::SelfGrads>,
+    GA: GradAdjuster<Network::SelfGrads> + GradApplyer,
 >(
     ga: &mut GA,
     network: &mut Network,
@@ -46,7 +46,7 @@ pub fn train_step<
     let gradient_updates = ga.adjust(gradient_updates, lv.to_f32().unwrap());
     // println!("updates: {:?}\n", gradient_updates);
 
-    network.update(gradient_updates).expect("update failed");
+    network.update(ga, gradient_updates).expect("update failed");
 }
 
 #[cfg(test)]
@@ -63,7 +63,7 @@ mod tests {
             layers::Dense::<f32, 1, 2>::default(),
             layers::Dense::<f32, 2, 2>::default(),
         );
-        let mut updater = network.new_momentum(TrainParams { lr: 3.0e-8 }, 0.2);
+        let mut updater = network.new_momentum(TrainParams::with_lr(3.0e-8).and_l1(1.0e-5), 0.2);
         let mut rng = SmallRng::seed_from_u64(42);
         network.rand_params(&mut rng, 0.5).unwrap();
 
@@ -77,8 +77,9 @@ mod tests {
             // backprop, not the target.
             let (_, mut gradient_updates) = network.backprop(&trace, target.clone());
 
+            let gradient_updates = updater.adjust(gradient_updates, -loss);
             network
-                .update(updater.update(gradient_updates, -loss))
+                .update(&mut updater, gradient_updates)
                 .expect("update failed");
         }
 
@@ -97,7 +98,7 @@ mod tests {
         let mut rng = SmallRng::seed_from_u64(765);
         network.rand_params(&mut rng, 0.1).unwrap();
 
-        let mut params = TrainParams { lr: 1.0e-5 };
+        let mut params = TrainParams::with_lr(1.0e-5);
         for _i in 0..200 {
             let input = rng.random_range(-20.0..20.0);
             let target = [-input, input];
@@ -124,7 +125,7 @@ mod tests {
         let mut rng = SmallRng::seed_from_u64(765);
         network.rand_params(&mut rng, 0.1).unwrap();
 
-        let mut updater = network.new_momentum(TrainParams { lr: 1.0e-5 }, 0.4);
+        let mut updater = network.new_momentum(TrainParams::with_lr(1.0e-5), 0.4);
         for _i in 0..50 {
             let input = rng.random_range(-20.0..20.0);
             let target = [-input, input];
@@ -166,7 +167,7 @@ mod tests {
             [1.0 - r, r]
         };
 
-        let mut params = TrainParams { lr: 8.0e-2 };
+        let mut params = TrainParams::with_lr(8.0e-2).and_l2(1.0e-6);
         for _i in 0..5000 {
             let input = rng.random_range(-2.0..2.0);
             let target = func(input);
@@ -207,7 +208,7 @@ mod tests {
             [1.0 - r, r]
         };
 
-        let mut params = TrainParams { lr: 8.0e-2 };
+        let mut params = TrainParams::with_lr(8.0e-2);
         for _i in 0..3000 {
             let input = rng.random_range(-2.0..2.0);
             let target = func(input);
@@ -246,7 +247,7 @@ mod tests {
 
         let func = |inp| inp - 2.2;
 
-        let mut updater = network.new_momentum(TrainParams { lr: 1.0e-4 }, 0.3);
+        let mut updater = network.new_momentum(TrainParams::with_lr(1.0e-4), 0.3);
         for _i in 0..20000 {
             let input = rng.random_range(-5.0..5.0);
             let target = [func(input)];
@@ -267,38 +268,38 @@ mod tests {
     }
 
     // NOTE: Seems to have issues with smashing the stack.
-    // #[test]
-    // fn test_glu() {
-    //     let mut network = (
-    //         layers::Dense::<f32, 1, 3>::default(),
-    //         layers::Bias1d::<f32, 3>::default(),
-    //         layers::Activation::LeakyRelu(0.5),
-    //         layers::GLU::<f32, 3, 4>::default(),
-    //         layers::Dense::<f32, 4, 1>::default(),
-    //         layers::Bias1d::<f32, 1>::default(),
-    //     );
-    //     let mut rng = SmallRng::seed_from_u64(43);
-    //     network.rand_params(&mut rng, 0.2).unwrap();
+    #[test]
+    fn test_glu() {
+        let mut network = (
+            layers::Dense::<f32, 1, 3>::default(),
+            layers::Bias1d::<f32, 3>::default(),
+            layers::Activation::LeakyRelu(0.5),
+            layers::GLU::<f32, 3, 4>::default(),
+            layers::Dense::<f32, 4, 1>::default(),
+            layers::Bias1d::<f32, 1>::default(),
+        );
+        let mut rng = SmallRng::seed_from_u64(43);
+        network.rand_params(&mut rng, 0.2).unwrap();
 
-    //     let func = |inp| inp - 2.2;
+        let func = |inp| inp - 2.2;
 
-    //     let mut updater = network.new_momentum(TrainParams { lr: 5.0e-3 }, 0.1);
-    //     for _i in 0..1000 {
-    //         let input = rng.random_range(-4.0..4.0);
-    //         let target = [func(input)];
-    //         train_step(
-    //             &mut updater,
-    //             &mut network,
-    //             |got, want| (got.mse(want), got.mse_input_grads(want)),
-    //             [input],
-    //             target,
-    //         );
-    //     }
+        let mut updater = network.new_momentum(TrainParams::with_lr(5.0e-3), 0.1);
+        for _i in 0..1000 {
+            let input = rng.random_range(-4.0..4.0);
+            let target = [func(input)];
+            train_step(
+                &mut updater,
+                &mut network,
+                |got, want| (got.mse(want), got.mse_input_grads(want)),
+                [input],
+                target,
+            );
+        }
 
-    //     let inp = 3.2;
-    //     let out = network.forward(&[inp]).unwrap();
-    //     let loss = out.mse(&[func(inp)]);
-    //     println!("got={:?}, want={:?}: loss={}", out, func(inp), loss);
-    //     assert!(loss < 0.15);
-    // }
+        let inp = 3.2;
+        let out = network.forward(&[inp]).unwrap();
+        let loss = out.mse(&[func(inp)]);
+        println!("got={:?}, want={:?}: loss={}", out, func(inp), loss);
+        assert!(loss < 0.15);
+    }
 }

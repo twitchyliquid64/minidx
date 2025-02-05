@@ -60,8 +60,12 @@ impl<
         (out, mod_grads)
     }
 
-    fn update(&mut self, updates: Self::SelfGrads) -> Result<(), crate::Error> {
-        self.module.update(updates)
+    fn update(
+        &mut self,
+        applyer: &mut impl crate::optimizers::GradApplyer,
+        updates: Self::SelfGrads,
+    ) -> Result<(), crate::Error> {
+        self.module.update(applyer, updates)
     }
 }
 

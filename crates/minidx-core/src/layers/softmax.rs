@@ -62,7 +62,11 @@ impl<E: Float, const I: usize> crate::RevModule<[E; I]> for Softmax {
         (self.backprop(inputs, grads_wrt_output), ())
     }
 
-    fn apply(&mut self, _updates: Self::SelfGrads) -> Result<(), crate::Error> {
+    fn apply(
+        &mut self,
+        _applyer: &mut impl crate::optimizers::GradApplyer,
+        _updates: Self::SelfGrads,
+    ) -> Result<(), crate::Error> {
         Ok(())
     }
 }

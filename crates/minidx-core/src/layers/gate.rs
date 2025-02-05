@@ -156,13 +156,17 @@ impl<
         (out, ((gc_grads, gb_grads, ga_grads), (sc_grads, sb_grads)))
     }
 
-    fn update(&mut self, updates: Self::SelfGrads) -> Result<(), crate::Error> {
-        self.gate_connections.update(updates.0 .0)?;
-        self.gate_bias.update(updates.0 .1)?;
-        self.activation.update(updates.0 .2)?;
+    fn update(
+        &mut self,
+        applyer: &mut impl crate::optimizers::GradApplyer,
+        updates: Self::SelfGrads,
+    ) -> Result<(), crate::Error> {
+        self.gate_connections.update(applyer, updates.0 .0)?;
+        self.gate_bias.update(applyer, updates.0 .1)?;
+        self.activation.update(applyer, updates.0 .2)?;
 
-        self.sig_connections.update(updates.1 .0)?;
-        self.sig_bias.update(updates.1 .1)?;
+        self.sig_connections.update(applyer, updates.1 .0)?;
+        self.sig_bias.update(applyer, updates.1 .1)?;
 
         Ok(())
     }
