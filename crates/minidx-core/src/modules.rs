@@ -95,6 +95,33 @@ pub trait BackpropModule<X>: TracedModule<X> {
     {
         crate::optimizers::Momentum::new(params, momentum_coefficient)
     }
+
+    /// Initializes state which can be used to track rmsprop during training.
+    fn new_rmsprop(
+        &self,
+        params: crate::optimizers::TrainParams,
+        beta: f32,
+    ) -> crate::optimizers::RMSProp<Self::SelfGrads>
+    where
+        <Self as BackpropModule<X>>::SelfGrads: Gradients,
+        <Self::SelfGrads as Gradients>::Concrete: crate::Float,
+    {
+        crate::optimizers::RMSProp::new(params, beta)
+    }
+
+    /// Initializes state which can be used to track rmsprop & momentum during training.
+    fn new_rmsprop_with_momentum(
+        &self,
+        params: crate::optimizers::TrainParams,
+        momentum_coefficient: f32,
+        beta: f32,
+    ) -> crate::optimizers::RMSProp<Self::SelfGrads>
+    where
+        <Self as BackpropModule<X>>::SelfGrads: Gradients,
+        <Self::SelfGrads as Gradients>::Concrete: crate::Float,
+    {
+        crate::optimizers::RMSProp::new_with_momentum(params, momentum_coefficient, beta)
+    }
 }
 
 impl<Input, M: TracedModule<Input, Trace = Input> + RevModule<Input> + BaseModule>

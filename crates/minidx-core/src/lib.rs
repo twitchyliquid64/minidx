@@ -145,6 +145,34 @@ mod tests {
     }
 
     #[test]
+    fn test_train_step_rmsprop() {
+        let mut network = (
+            layers::Dense::<f32, 1, 2>::default(),
+            layers::Dense::<f32, 2, 2>::default(),
+        );
+        let mut rng = SmallRng::seed_from_u64(765);
+        network.rand_params(&mut rng, 0.1).unwrap();
+
+        let mut updater = network.new_rmsprop_with_momentum(TrainParams::with_lr(1.0e-4), 0.6, 0.5);
+        for _i in 0..50 {
+            let input = rng.random_range(-20.0..20.0);
+            let target = [-input, input];
+            train_step(
+                &mut updater,
+                &mut network,
+                |got, want| (got.mse(want), got.mse_input_grads(want)),
+                [input],
+                target,
+            );
+        }
+
+        let out = network.forward(&[1.0]).unwrap();
+        let loss = out.mse(&[-1.0, 1.0]);
+        println!("got={:?}, want={:?}: loss={}", out, [-1.0, 1.0], loss);
+        assert!(loss < 0.1);
+    }
+
+    #[test]
     fn test_train_step_softmax() {
         let mut network = (
             (

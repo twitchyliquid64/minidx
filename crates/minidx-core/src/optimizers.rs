@@ -1,4 +1,4 @@
-use crate::{Gradients, Unit};
+use crate::{Float, Gradients, Unit};
 use num_traits::FromPrimitive;
 
 /// An object responsible for tweaking gradient updates, such as to
@@ -156,5 +156,103 @@ impl<G: Gradients> GradApplyer for Momentum<G> {
         weights: &mut G2,
     ) -> Result<(), crate::Error> {
         self.params.apply(gradient_updates, weights)
+    }
+}
+
+enum RMSPropBase<G: Gradients> {
+    NoMomentum(TrainParams),
+    Momentum(Momentum<G>),
+}
+
+impl<G: Gradients> GradAdjuster<G> for RMSPropBase<G> {
+    fn adjust(&mut self, gradient_updates: G, loss: f32) -> G {
+        use RMSPropBase::*;
+        match self {
+            NoMomentum(params) => params.adjust(gradient_updates, loss),
+            Momentum(m) => m.adjust(gradient_updates, loss),
+        }
+    }
+}
+
+impl<G: Gradients> GradApplyer for RMSPropBase<G> {
+    fn apply<G2: Gradients>(
+        &mut self,
+        gradient_updates: G2,
+        weights: &mut G2,
+    ) -> Result<(), crate::Error> {
+        use RMSPropBase::*;
+        match self {
+            NoMomentum(params) => params.apply(gradient_updates, weights),
+            Momentum(m) => m.apply(gradient_updates, weights),
+        }
+    }
+}
+
+/// Implements rmsprop on top of basic training parameters or [Momentum].
+pub struct RMSProp<G: Gradients>
+where
+    G::Concrete: Float,
+{
+    base: RMSPropBase<G>,
+    accumulator: G,
+    beta: f32,
+}
+
+impl<G: Gradients> RMSProp<G>
+where
+    G::Concrete: Float,
+{
+    /// Constructs a new rmsprop optimizer.
+    pub fn new(params: TrainParams, beta: f32) -> RMSProp<G> {
+        Self {
+            beta,
+            base: RMSPropBase::NoMomentum(params),
+            accumulator: G::empty(),
+        }
+    }
+
+    /// Constructs a new rmsprop optimizer with momentum.
+    pub fn new_with_momentum(params: TrainParams, momentum_coeff: f32, beta: f32) -> RMSProp<G> {
+        Self {
+            beta,
+            base: RMSPropBase::Momentum(Momentum::new(params, momentum_coeff)),
+            accumulator: G::empty(),
+        }
+    }
+}
+
+impl<G: Gradients> GradAdjuster<G> for RMSProp<G>
+where
+    G::Concrete: Float,
+{
+    fn adjust(&mut self, mut gradient_updates: G, loss: f32) -> G {
+        let b = G::Concrete::from_f32(self.beta).unwrap();
+        self.accumulator
+            .grad_iter_mut()
+            .zip(gradient_updates.grad_iter_mut())
+            .for_each(|(a, u)| {
+                let new_a = (*a * b) + (G::Concrete::ONE - b) * (*u) * (*u);
+                *a = new_a;
+
+                // rmsprop divides the learning rate by sqrt(accumulator + epsilon).
+                // the learning rate will be multiplied in next, so we just apply it to
+                // the whole gradient.
+                *u /= (new_a + G::Concrete::SMOL).sqrt();
+            });
+
+        self.base.adjust(gradient_updates, loss)
+    }
+}
+
+impl<G: Gradients> GradApplyer for RMSProp<G>
+where
+    G::Concrete: Float,
+{
+    fn apply<G2: Gradients>(
+        &mut self,
+        gradient_updates: G2,
+        weights: &mut G2,
+    ) -> Result<(), crate::Error> {
+        self.base.apply(gradient_updates, weights)
     }
 }
