@@ -2,18 +2,25 @@ use crate::Float;
 
 /// A softmax activation layer with no trainable parameters.
 #[derive(Clone, Debug)]
-pub struct Softmax {}
+pub struct Softmax(pub f32);
+
+impl Default for Softmax {
+    fn default() -> Self {
+        Self(1.0)
+    }
+}
 
 impl Softmax {
     #[inline]
     fn forward<E: Float, const I: usize>(&self, input: &[E; I]) -> [E; I] {
+        let t = E::from_f32(self.0).unwrap();
         let mut out: [E; I] = [E::default(); I];
 
         let max_val = input.iter().fold(E::NEG_INFINITY, |l, r| E::max(l, *r));
 
         // Compute exponential of difference between x and max value.
         out.iter_mut().zip(input.iter()).for_each(|(o, &x)| {
-            *o = (x - max_val).exp();
+            *o = ((x - max_val) / t).exp();
         });
 
         // Normalize
@@ -29,6 +36,7 @@ impl Softmax {
         input: &[E; I],
         grads_wrt_output: &[E; I],
     ) -> [E; I] {
+        let t = E::from_f32(self.0).unwrap();
         let output = self.forward(input);
 
         let mut out: [E; I] = [E::default(); I];
@@ -38,7 +46,7 @@ impl Softmax {
                 let kronecker = if i == j { E::ONE } else { E::default() };
                 sum += (kronecker - output[j]) * grads_wrt_output[j];
             }
-            *o = output[i] * sum;
+            *o = output[i] * sum / t;
         });
 
         out
@@ -87,16 +95,16 @@ mod tests {
 
     #[test]
     fn test_softmax_zeros() {
-        assert_eq!([0.5, 0.5f32], (Softmax {}).forward(&[0.0, 0.0f32]));
+        assert_eq!([0.5, 0.5f32], (Softmax::default()).forward(&[0.0, 0.0f32]));
         assert_eq!(
             [0.25, 0.25, 0.25, 0.25f32],
-            (Softmax {}).forward(&[0.0, 0.0, 0.0, 0.0f32])
+            (Softmax::default()).forward(&[0.0, 0.0, 0.0, 0.0f32])
         );
     }
 
     #[test]
     fn test_softmax() {
-        let [l, r] = (Softmax {}).forward(&[0.01, 1.0f32]);
+        let [l, r] = (Softmax::default()).forward(&[0.01, 1.0f32]);
         assert!(l < r);
         assert!(l < r / 2.0);
         assert!(l > r / 100.0);
@@ -104,7 +112,7 @@ mod tests {
 
     #[test]
     fn test_softmax_backprop() {
-        let [lg, rg] = (Softmax {}).backprop(&[0.01, 1.0f32], &[1.0, -1.0f32]);
+        let [lg, rg] = (Softmax::default()).backprop(&[0.01, 1.0f32], &[1.0, -1.0f32]);
         assert!(lg > rg);
         // TODO: Needs moar checking
     }

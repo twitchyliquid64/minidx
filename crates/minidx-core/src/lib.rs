@@ -185,7 +185,7 @@ mod tests {
                 layers::Bias1d::<f32, 2>::default(),
                 layers::Activation::Relu,
             ),
-            layers::Softmax {},
+            layers::Softmax::default(),
         );
         let mut rng = SmallRng::seed_from_u64(23423);
         network.rand_params(&mut rng, 0.5).unwrap();
