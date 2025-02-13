@@ -18,6 +18,27 @@ pub struct GLU<
     activation: A,
 }
 
+impl<E: Dtype + Float, const I: usize, const O: usize> GLU<E, I, O, Activation<E>> {
+    pub fn sigmoid() -> Self {
+        Self {
+            activation: Activation::<E>::Sigmoid,
+            ..Self::default()
+        }
+    }
+    pub fn relu() -> Self {
+        Self {
+            activation: Activation::<E>::Relu,
+            ..Self::default()
+        }
+    }
+    pub fn leaky_relu(a: f32) -> Self {
+        Self {
+            activation: Activation::<E>::LeakyRelu(E::from_f32(a).unwrap()),
+            ..Self::default()
+        }
+    }
+}
+
 impl<
         E: Dtype + Float,
         const I: usize,

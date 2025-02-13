@@ -55,6 +55,7 @@ name = "minidx"
 version = "0.1.0"
 dependencies = [
  "minidx-core",
+ "num-traits",
 ]
 
 [[package]]
