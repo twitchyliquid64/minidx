@@ -1,5 +1,5 @@
 use crate::{PaintParams, ParamVisOpts};
-use minidx_core::Dtype;
+use minidx_core::{Dtype, Float};
 use raqote::DrawTarget;
 
 /// Identifies layer types which are native to minidx: needed to get around
@@ -8,6 +8,7 @@ trait LayerMarker {}
 
 impl<E: Dtype, const I: usize> LayerMarker for minidx_core::layers::Bias1d<E, I> {}
 impl<E: Dtype, const I: usize, const O: usize> LayerMarker for minidx_core::layers::Dense<E, I, O> {}
+impl<E: Float> LayerMarker for minidx_core::layers::Activation<E> {}
 
 /// Some composition of parameters which can be visualized.
 pub trait VisualizableNetwork<DT> {
@@ -16,15 +17,15 @@ pub trait VisualizableNetwork<DT> {
     fn visualize(&self, dt: &mut DT, opts: ParamVisOpts) -> (f32, f32);
 }
 
-impl<M: minidx_core::VisualizableLayer + LayerMarker> VisualizableNetwork<DrawTarget> for M
+impl<M: minidx_core::VisualizableUnit + LayerMarker> VisualizableNetwork<DrawTarget> for M
 where
     DrawTarget: PaintParams<M::Params>,
 {
     type Params = M::Params;
 
-    fn visualize(&self, dt: &mut DrawTarget, opts: ParamVisOpts) -> (f32, f32) {
+    fn visualize(&self, dt: &mut DrawTarget, mut opts: ParamVisOpts) -> (f32, f32) {
         let bounds = dt.layout_bounds(&opts);
-        dt.paint_params(self.params(), &opts);
+        dt.paint_params(self.params(), &mut opts);
         (0.0, bounds.1)
     }
 }

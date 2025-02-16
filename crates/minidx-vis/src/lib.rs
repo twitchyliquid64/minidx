@@ -1,10 +1,12 @@
-use fontdue::layout::{Layout, LayoutSettings, TextStyle};
-use fontdue::Font;
+use fontdue::layout::LayoutSettings;
 use minidx_core::Dtype;
 use raqote::*;
 
 mod network_traits;
 pub use network_traits::VisualizableNetwork;
+
+mod font;
+pub use font::VisFont;
 
 /// Describes the sizing of the cell for a single parameter.
 #[derive(Debug, Clone)]
@@ -47,38 +49,19 @@ pub struct ParamVisOpts {
     module_padding: (f32, f32),
     cell: ParamBox,
     scale: ParamScale,
-    font: std::sync::Arc<Font>,
+    font: VisFont,
 }
 
 impl Default for ParamVisOpts {
     fn default() -> Self {
-        use rust_fontconfig::{FcFontCache, FcPattern};
-        let cache = FcFontCache::build();
-        // println!("{:?}", cache.list());
-        let results = cache
-            .query(&FcPattern {
-                family: Some(String::from("Liberation Mono")), // TODO: Better search logic
-                ..Default::default()
-            })
-            .unwrap();
-
-        let font_bytes = std::fs::read(results.path.clone()).unwrap();
+        let font = VisFont::default_font().unwrap();
 
         Self {
             offset: (2.0, 2.0),
             module_padding: (2.0, 6.0),
             cell: Default::default(),
             scale: Default::default(),
-            font: std::sync::Arc::new(
-                Font::from_bytes(
-                    font_bytes,
-                    fontdue::FontSettings {
-                        collection_index: results.font_index as u32,
-                        ..Default::default()
-                    },
-                )
-                .unwrap(),
-            ),
+            font,
         }
     }
 }
@@ -101,8 +84,20 @@ impl ParamVisOpts {
 trait PaintParams<P> {
     type Concrete: Sized;
 
-    fn paint_params(&mut self, params: &P, opts: &ParamVisOpts);
+    fn paint_params(&mut self, params: &P, opts: &mut ParamVisOpts);
     fn layout_bounds(&self, opts: &ParamVisOpts) -> (f32, f32);
+}
+
+impl PaintParams<()> for DrawTarget {
+    type Concrete = ();
+    fn layout_bounds(&self, opts: &ParamVisOpts) -> (f32, f32) {
+        (
+            opts.offset.0 + opts.module_padding.0,
+            opts.offset.1 + opts.module_padding.1,
+        )
+    }
+
+    fn paint_params(&mut self, _params: &(), _opts: &mut ParamVisOpts) {}
 }
 
 impl<E: Dtype, const I: usize, const O: usize> PaintParams<[[E; I]; O]> for DrawTarget {
@@ -114,9 +109,7 @@ impl<E: Dtype, const I: usize, const O: usize> PaintParams<[[E; I]; O]> for Draw
         )
     }
 
-    fn paint_params(&mut self, params: &[[E; I]; O], opts: &ParamVisOpts) {
-        let mut layout = Layout::<()>::new(fontdue::layout::CoordinateSystem::PositiveYDown);
-
+    fn paint_params(&mut self, params: &[[E; I]; O], opts: &mut ParamVisOpts) {
         let scale = 1.0;
 
         for (j, params) in params.iter().enumerate() {
@@ -168,25 +161,23 @@ impl<E: Dtype, const I: usize, const O: usize> PaintParams<[[E; I]; O]> for Draw
                 s.truncate(3);
 
                 // Layout the text
-                layout.reset(&LayoutSettings {
-                    x: tl.0,
-                    y: tl.1 + 1.0,
-                    max_width: Some(opts.cell.w),
-                    max_height: Some(opts.cell.h - 2.0),
-                    horizontal_align: fontdue::layout::HorizontalAlign::Center,
-                    vertical_align: fontdue::layout::VerticalAlign::Middle,
-                    ..LayoutSettings::default()
-                });
-                layout.append(
-                    &[opts.font.clone()], // its an arc
-                    &TextStyle::new(s.as_str(), opts.cell.font_size, 0),
+                let glyphs = opts.font.layout_str(
+                    &LayoutSettings {
+                        x: tl.0,
+                        y: tl.1 + 1.0,
+                        max_width: Some(opts.cell.w),
+                        max_height: Some(opts.cell.h - 2.0),
+                        horizontal_align: fontdue::layout::HorizontalAlign::Center,
+                        vertical_align: fontdue::layout::VerticalAlign::Middle,
+                        ..LayoutSettings::default()
+                    },
+                    s.as_str(),
+                    opts.cell.font_size,
                 );
 
                 // Raster the text
                 let (rc, gc, bc) = (201, 201, 201);
-                for g in layout.glyphs().iter() {
-                    let (_, b) = opts.font.rasterize_config(g.key);
-
+                for (b, g) in glyphs {
                     let mut buf = Vec::new();
                     buf.resize(g.width * g.height, 0);
                     for (i, x) in b.into_iter().enumerate() {
@@ -234,7 +225,7 @@ mod tests {
             0xff, 0xcf, 0xcf, 0xcf,
         ));
 
-        dt.paint_params(params, &Default::default());
+        dt.paint_params(params, &mut Default::default());
 
         // dt.write_png("/tmp/ye.png").expect("write failed");
     }
@@ -243,8 +234,11 @@ mod tests {
     fn test_visualize() {
         use minidx_core::layers as l;
         let network = (
-            l::Dense::<f32, 2, 3>::default(),
-            l::Bias1d::<f32, 3>::default(),
+            (
+                l::Dense::<f32, 2, 3>::default(),
+                l::Bias1d::<f32, 3>::default(),
+            ),
+            l::Activation::<f32>::default(),
             l::Dense::<f32, 3, 1>::default(),
         );
         let mut dt = DrawTarget::new(460, 500);
@@ -256,6 +250,6 @@ mod tests {
 
         use VisualizableNetwork;
         network.visualize(&mut dt, params);
-        dt.write_png("/tmp/ye.png").expect("write failed");
+        // dt.write_png("/tmp/ye.png").expect("write failed");
     }
 }

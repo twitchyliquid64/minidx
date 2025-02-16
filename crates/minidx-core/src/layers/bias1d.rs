@@ -73,7 +73,7 @@ impl<E: Dtype, const I: usize> crate::ResetParams for Bias1d<E, I> {
     }
 }
 
-impl<E: Dtype, const I: usize> crate::VisualizableLayer for Bias1d<E, I> {
+impl<E: Dtype, const I: usize> crate::VisualizableUnit for Bias1d<E, I> {
     const KIND: &'static str = "bias1d";
     type Params = [[E; I]; 1];
     fn params(&self) -> &Self::Params {

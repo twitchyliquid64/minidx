@@ -113,6 +113,14 @@ impl<E: Float> crate::ResetParams for Activation<E> {
     }
 }
 
+impl<E: Float> crate::VisualizableUnit for Activation<E> {
+    const KIND: &'static str = "activation";
+    type Params = ();
+    fn params(&self) -> &Self::Params {
+        &()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

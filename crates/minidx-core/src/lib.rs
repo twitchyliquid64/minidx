@@ -50,7 +50,7 @@ pub fn train_step<
 }
 
 /// Something which can have its parameters visualized.
-pub trait VisualizableLayer {
+pub trait VisualizableUnit {
     const KIND: &'static str;
     type Params: std::fmt::Debug + Sized;
 
