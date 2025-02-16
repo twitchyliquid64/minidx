@@ -261,7 +261,7 @@ mod tests {
         assert_eq!(trace.2, ([2.0], [0.0]));
 
         // assume MSE loss, want=1 so loss=0.5 and dL/dY = -1.
-        let (out_grads, grads) = g.backprop(&trace, [-1.0]);
+        let (_out_grads, grads) = g.backprop(&trace, [-1.0]);
         assert_eq!(out, [0.0]); // no gradient backwards as the gate was inactive
         assert_eq!(grads.0, ([[0.0, 0.0]], [0.0], ())); // no gradient for gate as sig was inactive
         assert_eq!(grads.1, ([[-2.0, -4.0]], [-2.0])); // activation was non-zero so gradients for gate

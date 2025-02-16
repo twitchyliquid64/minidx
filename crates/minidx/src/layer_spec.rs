@@ -50,7 +50,6 @@ impl Default for LeakyRelu {
 impl<E: Dtype + minidx_core::Float> crate::Buildable<E> for LeakyRelu {
     type Built = Activation<E>;
     fn try_build(&self) -> Result<Self::Built, crate::Error> {
-        use num_traits::FromPrimitive;
         Ok(Activation::<E>::LeakyRelu(E::from_f32(self.0).unwrap()))
     }
 }
@@ -130,16 +129,16 @@ mod tests {
         );
 
         use crate::Buildable;
-        let realized = Buildable::<f32>::build(&network);
-        let realized = Buildable::<f32>::build(&(GLU::<3, 2>::default(),));
+        let _realized = Buildable::<f32>::build(&network);
+        let _realized = Buildable::<f32>::build(&(GLU::<3, 2>::default(),));
     }
 
     #[test]
     fn test_basic_typed_composition() {
-        type nt = ((Linear<1, 3>, Relu), LeakyRelu);
-        let network = nt::default();
+        type NetType = ((Linear<1, 3>, Relu), LeakyRelu);
+        let network = NetType::default();
 
         use crate::Buildable;
-        let realized = Buildable::<f32>::build(&network);
+        let _realized = Buildable::<f32>::build(&network);
     }
 }

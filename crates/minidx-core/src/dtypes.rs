@@ -47,6 +47,7 @@ unit!(i128, 1);
 unit!(bool, true);
 
 /// Represents something that has a [Unit].
+#[allow(dead_code)]
 pub trait HasUnitType {
     type Unit: Unit;
 }
@@ -85,11 +86,13 @@ impl Dtype for u128 {}
 impl Dtype for usize {}
 
 /// Represents something that has a [Dtype].
+#[allow(dead_code)]
 pub trait HasDtype {
     type Dtype: Dtype;
 }
 
 /// Marker trait for types that are **not** [AMP].
+#[allow(dead_code)]
 pub trait NotMixedPrecision {}
 impl NotMixedPrecision for f32 {}
 impl NotMixedPrecision for f64 {}
