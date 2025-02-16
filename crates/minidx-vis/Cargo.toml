@@ -1,0 +1,11 @@
+[package]
+edition = "2021"
+name = "minidx-vis"
+version = "0.1.0"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+minidx-core.workspace = true
+raqote.workspace = true
+rust-fontconfig.workspace = true
+fontdue.workspace = true

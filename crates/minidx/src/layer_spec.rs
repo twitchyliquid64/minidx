@@ -38,8 +38,14 @@ impl<E: Dtype + minidx_core::Float> crate::Buildable<E> for Relu {
 }
 
 /// The Leaky-ReLu activation function.
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug)]
 pub struct LeakyRelu(pub f32);
+
+impl Default for LeakyRelu {
+    fn default() -> Self {
+        Self(0.5)
+    }
+}
 
 impl<E: Dtype + minidx_core::Float> crate::Buildable<E> for LeakyRelu {
     type Built = Activation<E>;
@@ -91,8 +97,14 @@ impl<const I: usize, const O: usize, E: Dtype + minidx_core::Float> crate::Build
 }
 
 /// A GLU layer with a leaky-relu gate.
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug)]
 pub struct GLULeakyRelu<const I: usize, const O: usize>(pub f32);
+
+impl<const I: usize, const O: usize> Default for GLULeakyRelu<I, O> {
+    fn default() -> Self {
+        Self(0.5)
+    }
+}
 
 impl<const I: usize, const O: usize, E: Dtype + minidx_core::Float> crate::Buildable<E>
     for GLULeakyRelu<I, O>
@@ -120,5 +132,14 @@ mod tests {
         use crate::Buildable;
         let realized = Buildable::<f32>::build(&network);
         let realized = Buildable::<f32>::build(&(GLU::<3, 2>::default(),));
+    }
+
+    #[test]
+    fn test_basic_typed_composition() {
+        type nt = ((Linear<1, 3>, Relu), LeakyRelu);
+        let network = nt::default();
+
+        use crate::Buildable;
+        let realized = Buildable::<f32>::build(&network);
     }
 }
