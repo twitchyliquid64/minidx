@@ -15,8 +15,8 @@ pub trait Problem {
 /// For the problem Ax + B. Randomly generates A, x, and B uniformly in the
 /// domain and the correct answer.
 pub struct AxPlusB<E: Dtype, RNG: rand::Rng> {
-    pub domain: Range<E>,
-    pub rng: RNG,
+    domain: Range<E>,
+    rng: RNG,
 }
 
 impl<E: Dtype, RNG: rand::Rng> AxPlusB<E, RNG> {
@@ -56,7 +56,7 @@ impl<E: Dtype + rand::distr::uniform::SampleUniform, RNG: rand::Rng> Problem for
 /// For the problem of computing the parity bit given N input bits.
 pub struct Parity<E: Dtype, const N: usize, RNG: rand::Rng> {
     marker: std::marker::PhantomData<[E; N]>,
-    pub rng: RNG,
+    rng: RNG,
 }
 
 impl<E: Dtype + rand::distr::uniform::SampleUniform, RNG: rand::Rng, const N: usize>
@@ -94,6 +94,50 @@ impl<E: Dtype + rand::distr::uniform::SampleUniform, RNG: rand::Rng, const N: us
     }
 }
 
+/// For the problem of adding two numbers mod 10 together, with inputs and outputs
+/// represented with one-hot encodings.
+pub struct ModularAddition10<E: Dtype, RNG: rand::Rng> {
+    marker: std::marker::PhantomData<E>,
+    rng: RNG,
+}
+
+impl<E: Dtype + rand::distr::uniform::SampleUniform, RNG: rand::Rng> ModularAddition10<E, RNG> {
+    pub fn new(rng: RNG) -> Self {
+        Self {
+            marker: Default::default(),
+            rng,
+        }
+    }
+}
+
+impl<E: Dtype + rand::distr::uniform::SampleUniform, RNG: rand::Rng> Problem
+    for ModularAddition10<E, RNG>
+{
+    type Input = [E; 20];
+    type Output = [E; 10];
+
+    fn sample(&mut self) -> (Self::Input, Self::Output) {
+        use crate::OneHotEncoder;
+
+        let (lhs, rhs) = (
+            (self.rng.next_u32() % 10) as usize,
+            (self.rng.next_u32() % 10) as usize,
+        );
+        let output = (lhs + rhs) % 10;
+
+        let mut input = [E::default(); 20];
+        for (out, s) in input.iter_mut().zip(
+            OneHotEncoder::<10>::value(lhs)
+                .into_iter()
+                .chain(OneHotEncoder::<10>::value(rhs).into_iter()),
+        ) {
+            *out = s;
+        }
+
+        (input, OneHotEncoder::<10>::value(output))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -113,7 +157,7 @@ mod tests {
         let mut nn = Buildable::<f32>::build(&network);
 
         let mut rng = SmallRng::seed_from_u64(45645);
-        nn.rand_params(&mut rng, 0.1).unwrap();
+        nn.rand_params(&mut rng, 0.5).unwrap();
 
         let mut problem = AxPlusB::default_with_rng(rng);
 
@@ -154,7 +198,7 @@ mod tests {
         let mut nn = Buildable::<f32>::build(&network);
 
         let mut rng = SmallRng::seed_from_u64(546);
-        nn.rand_params(&mut rng, 0.1).unwrap();
+        nn.rand_params(&mut rng, 0.5).unwrap();
 
         let mut problem = Parity::new(rng);
 
@@ -182,4 +226,47 @@ mod tests {
             assert!(loss < 0.4);
         }
     }
+
+    // TODO: This should be an example or integration test - too heavy to
+    // be a unit test.
+    // #[test]
+    // fn test_modular_addition10() {
+    //     let network = (
+    //         (layers::Linear::<20, 30> {}, layers::Sigmoid),
+    //         layers::Linear::<30, 10> {},
+    //         layers::Softmax::default(),
+    //     );
+
+    //     use crate::Buildable;
+    //     let mut nn = Buildable::<f32>::build(&network);
+
+    //     let mut rng = SmallRng::seed_from_u64(456645);
+    //     nn.rand_params(&mut rng, 0.5).unwrap();
+
+    //     let mut problem = ModularAddition10::new(rng);
+
+    //     use minidx_core::loss::LogitLoss;
+    //     let mut updater = nn.new_rmsprop_with_momentum(TrainParams::with_lr(3.0e-2), 0.85, 0.8);
+    //     for _i in 0..22500 {
+    //         let (input, target) = problem.sample();
+    //         train_step(
+    //             &mut updater,
+    //             &mut nn,
+    //             |got, want| (got.logit_bce(want), got.logit_bce_input_grads(want)),
+    //             input,
+    //             target,
+    //         );
+    //     }
+
+    //     for _ in 0..30 {
+    //         let (input, target) = problem.sample();
+    //         let out = nn.forward(&input).unwrap();
+    //         let loss = out.logit_bce(&target);
+    //         println!(
+    //             "input={:?}: got={:?}, want={:?}: loss={}",
+    //             input, out, target, loss
+    //         );
+    //         assert!(loss < 0.2);
+    //     }
+    // }
 }
