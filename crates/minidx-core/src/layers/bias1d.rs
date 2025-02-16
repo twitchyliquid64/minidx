@@ -73,6 +73,15 @@ impl<E: Dtype, const I: usize> crate::ResetParams for Bias1d<E, I> {
     }
 }
 
+impl<E: Dtype, const I: usize> crate::VisualizableLayer for Bias1d<E, I> {
+    const KIND: &'static str = "bias1d";
+    type Params = [[E; I]; 1];
+    fn params(&self) -> &Self::Params {
+        // SAFETY: An array of N is exactly the same as a unary array of the array of N
+        unsafe { std::mem::transmute(&self.bias) }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

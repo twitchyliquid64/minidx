@@ -173,6 +173,14 @@ impl<E: Dtype, const I: usize, const O: usize> crate::ResetParams for Dense<E, I
     }
 }
 
+impl<E: Dtype, const I: usize, const O: usize> crate::VisualizableLayer for Dense<E, I, O> {
+    const KIND: &'static str = "dense";
+    type Params = [[E; I]; O];
+    fn params(&self) -> &Self::Params {
+        &self.weights
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

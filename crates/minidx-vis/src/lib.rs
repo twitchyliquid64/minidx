@@ -3,6 +3,10 @@ use fontdue::Font;
 use minidx_core::Dtype;
 use raqote::*;
 
+mod network_traits;
+pub use network_traits::VisualizableNetwork;
+
+/// Describes the sizing of the cell for a single parameter.
 #[derive(Debug, Clone)]
 pub struct ParamBox {
     w: f32,
@@ -21,27 +25,32 @@ impl Default for ParamBox {
 }
 
 /// How to scale the representation of parameters relative to each other.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum ParamScale {
-    StdDev { mul: f32 },
+    #[default]
+    None,
+    StdDev {
+        mul: f32,
+    },
 }
 
-impl Default for ParamScale {
-    fn default() -> Self {
-        Self::StdDev { mul: 1.2 }
-    }
-}
+// impl Default for ParamScale {
+//     fn default() -> Self {
+//         Self::StdDev { mul: 1.2 }
+//     }
+// }
 
 /// Options for rendering a set of parameters.
 #[derive(Debug, Clone)]
-pub struct ParamOpts {
+pub struct ParamVisOpts {
     offset: (f32, f32),
+    module_padding: (f32, f32),
     cell: ParamBox,
     scale: ParamScale,
     font: std::sync::Arc<Font>,
 }
 
-impl Default for ParamOpts {
+impl Default for ParamVisOpts {
     fn default() -> Self {
         use rust_fontconfig::{FcFontCache, FcPattern};
         let cache = FcFontCache::build();
@@ -57,6 +66,7 @@ impl Default for ParamOpts {
 
         Self {
             offset: (2.0, 2.0),
+            module_padding: (2.0, 6.0),
             cell: Default::default(),
             scale: Default::default(),
             font: std::sync::Arc::new(
@@ -73,18 +83,38 @@ impl Default for ParamOpts {
     }
 }
 
+impl ParamVisOpts {
+    /// Returns a new [ParamVisOpts] with the offset updated for laying out
+    /// the next module.
+    pub fn update_cursor(&self, offset: (f32, f32)) -> Self {
+        Self {
+            offset: (
+                offset.0 + self.offset.0,
+                offset.1 + self.offset.1 + self.module_padding.1,
+            ),
+            ..self.clone()
+        }
+    }
+}
+
 /// Implements visual rendering of a set of parameters.
-pub trait PaintParams<P> {
-    fn paint_params(&mut self, params: &P, opts: &ParamOpts);
-    fn layout_bounds(&self, opts: &ParamOpts) -> (u32, u32);
+trait PaintParams<P> {
+    type Concrete: Sized;
+
+    fn paint_params(&mut self, params: &P, opts: &ParamVisOpts);
+    fn layout_bounds(&self, opts: &ParamVisOpts) -> (f32, f32);
 }
 
 impl<E: Dtype, const I: usize, const O: usize> PaintParams<[[E; I]; O]> for DrawTarget {
-    fn layout_bounds(&self, opts: &ParamOpts) -> (u32, u32) {
-        (opts.cell.w as u32 * I as u32, opts.cell.h as u32 * O as u32)
+    type Concrete = [[E; I]; O];
+    fn layout_bounds(&self, opts: &ParamVisOpts) -> (f32, f32) {
+        (
+            opts.offset.0 + opts.cell.w * I as f32,
+            opts.offset.1 + opts.cell.h * O as f32,
+        )
     }
 
-    fn paint_params(&mut self, params: &[[E; I]; O], opts: &ParamOpts) {
+    fn paint_params(&mut self, params: &[[E; I]; O], opts: &ParamVisOpts) {
         let mut layout = Layout::<()>::new(fontdue::layout::CoordinateSystem::PositiveYDown);
 
         let scale = 1.0;
@@ -206,6 +236,26 @@ mod tests {
 
         dt.paint_params(params, &Default::default());
 
-        // dt.write_png("/tmp/ye.png");
+        // dt.write_png("/tmp/ye.png").expect("write failed");
+    }
+
+    #[test]
+    fn test_visualize() {
+        use minidx_core::layers as l;
+        let network = (
+            l::Dense::<f32, 2, 3>::default(),
+            l::Bias1d::<f32, 3>::default(),
+            l::Dense::<f32, 3, 1>::default(),
+        );
+        let mut dt = DrawTarget::new(460, 500);
+        dt.clear(SolidSource::from_unpremultiplied_argb(
+            0xff, 0xcf, 0xcf, 0xcf,
+        ));
+
+        let params = ParamVisOpts::default();
+
+        use VisualizableNetwork;
+        network.visualize(&mut dt, params);
+        dt.write_png("/tmp/ye.png").expect("write failed");
     }
 }

@@ -147,6 +147,9 @@ impl<Input, M: TracedModule<Input, Trace = Input> + RevModule<Input> + BaseModul
 }
 
 /// Marker trait for low-level layers which are composable modules.
+///
+/// Set on layers which are native to minidx: needed to get around
+/// trait conflicts between impls on M and (M,)
 pub(crate) trait BaseModule {}
 
 /// Something that can have its learnable parameters reset.

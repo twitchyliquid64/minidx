@@ -49,6 +49,14 @@ pub fn train_step<
     network.update(ga, gradient_updates).expect("update failed");
 }
 
+/// Something which can have its parameters visualized.
+pub trait VisualizableLayer {
+    const KIND: &'static str;
+    type Params: std::fmt::Debug + Sized;
+
+    fn params(&self) -> &Self::Params;
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
