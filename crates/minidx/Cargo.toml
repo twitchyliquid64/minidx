@@ -7,3 +7,5 @@ license = "MIT OR Apache-2.0"
 [dependencies]
 minidx-core.workspace = true
 num-traits.workspace = true
+rand.workspace = true
+rand_distr.workspace = true

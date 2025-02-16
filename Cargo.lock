@@ -309,6 +309,8 @@ version = "0.1.0"
 dependencies = [
  "minidx-core",
  "num-traits",
+ "rand",
+ "rand_distr",
 ]
 
 [[package]]

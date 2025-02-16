@@ -1,15 +1,19 @@
 pub use minidx_core as core;
 
 pub mod layer_spec;
+pub use minidx_core::train_step;
 use minidx_core::{Dtype, Error};
 
 pub mod prelude {
     pub use crate::layer_spec as layers;
     pub use crate::Buildable;
+    pub use minidx_core::optimizers::TrainParams;
     pub use minidx_core::{BackpropModule, Error, Module, ResetParams, TracedModule};
 
-    pub use minidx_core::train_step;
+    pub use crate::train_step;
 }
+
+pub mod problem;
 
 /// A layer or composition of layers that can be constructed, using some Dtype as the element type.
 pub trait Buildable<E: Dtype>: Clone {

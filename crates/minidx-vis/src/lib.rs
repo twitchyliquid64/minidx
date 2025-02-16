@@ -8,6 +8,10 @@ pub use network_traits::VisualizableNetwork;
 mod font;
 pub use font::VisFont;
 
+pub mod prelude {
+    pub use crate::VisualizableNetwork;
+}
+
 /// Describes the sizing of the cell for a single parameter.
 #[derive(Debug, Clone)]
 pub struct ParamBox {

@@ -16,6 +16,8 @@ impl<const I: usize, const O: usize, E: Dtype> crate::Buildable<E> for Dense<I, 
 
 /// A fully-connected layer with a fixed number of inputs and outputs, and
 /// learnable bias on each output. A standard pre-activation MLP layer.
+///
+/// This is the same as putting a [Bias1d] after a [Dense].
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Linear<const I: usize, const O: usize> {}
 
