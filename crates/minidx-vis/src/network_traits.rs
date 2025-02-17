@@ -7,7 +7,10 @@ use raqote::DrawTarget;
 trait LayerMarker {}
 
 impl<E: Dtype, const I: usize> LayerMarker for minidx_core::layers::Bias1d<E, I> {}
-impl<E: Dtype, const I: usize, const O: usize> LayerMarker for minidx_core::layers::Dense<E, I, O> {}
+impl<E: Dtype + minidx_core::matmul::MatMulImpl, const I: usize, const O: usize> LayerMarker
+    for minidx_core::layers::Dense<E, I, O>
+{
+}
 impl<E: Float> LayerMarker for minidx_core::layers::Activation<E> {}
 
 /// Some composition of parameters which can be visualized.

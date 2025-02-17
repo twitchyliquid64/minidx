@@ -3,6 +3,9 @@ pub use dtypes::{Dtype, Float, Unit};
 pub mod shapes;
 pub use shapes::*;
 
+#[doc(hidden)]
+pub mod matmul;
+
 mod iterate;
 // pub(crate) use iterate::*;
 

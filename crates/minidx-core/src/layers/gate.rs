@@ -1,10 +1,11 @@
 use crate::layers::{Activation, Bias1d, Dense};
+use crate::matmul::MatMulImpl;
 use crate::{Dtype, Float};
 
 /// A gated linear unit, containing dense layers and bias for both the gate and gated connections.
 #[derive(Clone, Debug, Default)]
 pub struct GLU<
-    E: Dtype + Float,
+    E: Dtype + Float + MatMulImpl,
     const I: usize,
     const O: usize,
     A: crate::Module<[E; O], Output = [E; O]> + Default = Activation<E>,
@@ -18,7 +19,7 @@ pub struct GLU<
     activation: A,
 }
 
-impl<E: Dtype + Float, const I: usize, const O: usize> GLU<E, I, O, Activation<E>> {
+impl<E: Dtype + Float + MatMulImpl, const I: usize, const O: usize> GLU<E, I, O, Activation<E>> {
     pub fn sigmoid() -> Self {
         Self {
             activation: Activation::<E>::Sigmoid,
@@ -40,7 +41,7 @@ impl<E: Dtype + Float, const I: usize, const O: usize> GLU<E, I, O, Activation<E
 }
 
 impl<
-        E: Dtype + Float,
+        E: Dtype + Float + MatMulImpl,
         const I: usize,
         const O: usize,
         A: crate::Module<[E; O], Output = [E; O]> + TracedModule<[E; O]> + Default,
@@ -65,7 +66,7 @@ impl<
 use crate::TracedModule;
 
 impl<
-        E: Dtype + Float,
+        E: Dtype + Float + MatMulImpl,
         const I: usize,
         const O: usize,
         A: crate::Module<[E; O], Output = [E; O]> + TracedModule<[E; O]> + Default,
@@ -117,7 +118,7 @@ impl<
 use crate::BackpropModule;
 
 impl<
-        E: Dtype + Float,
+        E: Dtype + Float + MatMulImpl,
         const I: usize,
         const O: usize,
         A: crate::Module<[E; O], Output = [E; O]>
@@ -194,7 +195,7 @@ impl<
 }
 
 impl<
-        E: Dtype + Float,
+        E: Dtype + Float + MatMulImpl,
         const I: usize,
         const O: usize,
         A: crate::Module<[E; O], Output = [E; O]> + Default + crate::ResetParams,

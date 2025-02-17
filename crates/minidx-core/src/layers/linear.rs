@@ -1,56 +1,13 @@
+use crate::matmul::MatMulImpl;
 use crate::{Dim, Dtype, Shape};
-
-#[allow(unused)]
-#[allow(clippy::too_many_arguments)]
-fn naive_gemm<F: Dtype, M: Dim, K: Dim, N: Dim>(
-    (m, k, n): (M, K, N),
-    accum: bool,
-    ap: *const F,
-    a_strides: [usize; 2],
-    bp: *const F,
-    b_strides: [usize; 2],
-    cp: *mut F,
-    c_strides: [usize; 2],
-) {
-    //println!("naive_gemm()");
-    for i_m in 0..m.size() {
-        for i_k in 0..k.size() {
-            for i_n in 0..n.size() {
-                unsafe {
-                    let a = *ap.add(a_strides[0] * i_m + a_strides[1] * i_k);
-                    let b = *bp.add(b_strides[0] * i_k + b_strides[1] * i_n);
-                    let c = cp.add(c_strides[0] * i_m + c_strides[1] * i_n);
-
-                    // println!(
-                    //     "({},{},{}) {:?} * {:?} = {:?} ({}, {}, {})",
-                    //     i_m,
-                    //     i_k,
-                    //     i_n,
-                    //     a,
-                    //     b,
-                    //     a * b,
-                    //     a_strides[0] * i_m + a_strides[1] * i_k,
-                    //     b_strides[0] * i_k + b_strides[1] * i_n,
-                    //     c_strides[0] * i_m + c_strides[1] * i_n
-                    // );
-                    if accum {
-                        *c += a * b;
-                    } else {
-                        *c = a * b;
-                    }
-                }
-            }
-        }
-    }
-}
 
 /// A fully-connected layer with a fixed number of inputs and outputs. No bias.
 #[derive(Clone, Debug)]
-pub struct Dense<E: Dtype, const I: usize, const O: usize> {
+pub struct Dense<E: Dtype + MatMulImpl, const I: usize, const O: usize> {
     pub(crate) weights: [[E; I]; O],
 }
 
-impl<E: Dtype, const I: usize, const O: usize> Default for Dense<E, I, O> {
+impl<E: Dtype + MatMulImpl, const I: usize, const O: usize> Default for Dense<E, I, O> {
     fn default() -> Self {
         Dense {
             weights: [[E::default(); I]; O],
@@ -58,15 +15,14 @@ impl<E: Dtype, const I: usize, const O: usize> Default for Dense<E, I, O> {
     }
 }
 
-impl<E: Dtype, const I: usize, const O: usize> Dense<E, I, O> {
+impl<E: Dtype + MatMulImpl, const I: usize, const O: usize> Dense<E, I, O> {
     #[inline]
     fn forward(&self, input: &[E; I]) -> [E; O] {
         let mut out: [E; O] = [E::default(); O];
 
-        // TODO: Use gemm package + parallelism
         let (m, k) = (1, I);
         let n = O;
-        naive_gemm(
+        E::matmul(
             (m, k, n),
             true, // I think this needs to be false?
             input.as_ptr(),
@@ -84,11 +40,10 @@ impl<E: Dtype, const I: usize, const O: usize> Dense<E, I, O> {
     fn gradients_wrt_input(&self, output_gradients: &[E; O]) -> [E; I] {
         let mut out: [E; I] = [E::default(); I];
 
-        // TODO: Use gemm package + parallelism
         let (m, k) = (1, I);
         let n = O;
         let strides = (m, n).strides();
-        naive_gemm(
+        E::matmul(
             (m, n, k),
             true,
             output_gradients.as_ptr(),
@@ -105,11 +60,10 @@ impl<E: Dtype, const I: usize, const O: usize> Dense<E, I, O> {
     fn gradients_wrt_weights(&self, input: &[E; I], output_gradients: &[E; O]) -> [[E; I]; O] {
         let mut out: [[E; I]; O] = [[E::default(); I]; O];
 
-        // TODO: Use gemm package + parallelism
         let (m, k) = (1, I);
         let n = O;
         let strides = (m, n).strides();
-        naive_gemm(
+        E::matmul(
             (k, m, n),
             false, // Just flipped this to false and it still works?
             input.as_ptr(),
@@ -123,9 +77,11 @@ impl<E: Dtype, const I: usize, const O: usize> Dense<E, I, O> {
     }
 }
 
-impl<E: Dtype, const I: usize, const O: usize> crate::BaseModule for Dense<E, I, O> {}
+impl<E: Dtype + MatMulImpl, const I: usize, const O: usize> crate::BaseModule for Dense<E, I, O> {}
 
-impl<E: Dtype, const I: usize, const O: usize> crate::Module<[E; I]> for Dense<E, I, O> {
+impl<E: Dtype + MatMulImpl, const I: usize, const O: usize> crate::Module<[E; I]>
+    for Dense<E, I, O>
+{
     type Output = [E; O];
 
     fn forward(&mut self, x: &[E; I]) -> Result<Self::Output, crate::Error> {
@@ -133,7 +89,9 @@ impl<E: Dtype, const I: usize, const O: usize> crate::Module<[E; I]> for Dense<E
     }
 }
 
-impl<E: Dtype, const I: usize, const O: usize> crate::RevModule<[E; I]> for Dense<E, I, O> {
+impl<E: Dtype + MatMulImpl, const I: usize, const O: usize> crate::RevModule<[E; I]>
+    for Dense<E, I, O>
+{
     type SelfGrads = [[E; I]; O];
 
     fn reverse(&mut self, inputs: &[E; I], grads_wrt_output: &[E; O]) -> ([E; I], Self::SelfGrads) {
@@ -152,7 +110,7 @@ impl<E: Dtype, const I: usize, const O: usize> crate::RevModule<[E; I]> for Dens
     }
 }
 
-impl<E: Dtype, const I: usize, const O: usize> crate::ResetParams for Dense<E, I, O> {
+impl<E: Dtype + MatMulImpl, const I: usize, const O: usize> crate::ResetParams for Dense<E, I, O> {
     fn rand_params<RNG: rand::Rng>(
         &mut self,
         rng: &mut RNG,
@@ -173,7 +131,9 @@ impl<E: Dtype, const I: usize, const O: usize> crate::ResetParams for Dense<E, I
     }
 }
 
-impl<E: Dtype, const I: usize, const O: usize> crate::VisualizableUnit for Dense<E, I, O> {
+impl<E: Dtype + MatMulImpl, const I: usize, const O: usize> crate::VisualizableUnit
+    for Dense<E, I, O>
+{
     const KIND: &'static str = "dense";
     type Params = [[E; I]; O];
     fn params(&self) -> &Self::Params {

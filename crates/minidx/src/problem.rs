@@ -138,6 +138,50 @@ impl<E: Dtype + rand::distr::uniform::SampleUniform, RNG: rand::Rng> Problem
     }
 }
 
+/// For the problem of adding two numbers mod 32 together, with inputs and outputs
+/// represented with one-hot encodings.
+pub struct ModularAddition32<E: Dtype, RNG: rand::Rng> {
+    marker: std::marker::PhantomData<E>,
+    rng: RNG,
+}
+
+impl<E: Dtype + rand::distr::uniform::SampleUniform, RNG: rand::Rng> ModularAddition32<E, RNG> {
+    pub fn new(rng: RNG) -> Self {
+        Self {
+            marker: Default::default(),
+            rng,
+        }
+    }
+}
+
+impl<E: Dtype + rand::distr::uniform::SampleUniform, RNG: rand::Rng> Problem
+    for ModularAddition32<E, RNG>
+{
+    type Input = [E; 64];
+    type Output = [E; 32];
+
+    fn sample(&mut self) -> (Self::Input, Self::Output) {
+        use crate::OneHotEncoder;
+
+        let (lhs, rhs) = (
+            (self.rng.next_u32() % 32) as usize,
+            (self.rng.next_u32() % 32) as usize,
+        );
+        let output = (lhs + rhs) % 32;
+
+        let mut input = [E::default(); 64];
+        for (out, s) in input.iter_mut().zip(
+            OneHotEncoder::<32>::value(lhs)
+                .into_iter()
+                .chain(OneHotEncoder::<32>::value(rhs).into_iter()),
+        ) {
+            *out = s;
+        }
+
+        (input, OneHotEncoder::<32>::value(output))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -225,46 +269,4 @@ mod tests {
             assert!(loss < 0.3);
         }
     }
-
-    // TODO: This should be an example or integration test - too heavy to
-    // be a unit test.
-    // #[test]
-    // fn test_modular_addition10() {
-    //     let network = (
-    //         (layers::Linear::<20, 30> {}, layers::Sigmoid),
-    //         layers::Linear::<30, 10> {},
-    //         layers::Softmax::default(),
-    //     );
-
-    //     use crate::Buildable;
-    //     let mut nn = Buildable::<f32>::build(&network);
-
-    //     let mut rng = SmallRng::seed_from_u64(456645);
-    //     nn.rand_params(&mut rng, 0.5).unwrap();
-
-    //     let mut problem = ModularAddition10::new(rng);
-
-    //     use minidx_core::loss::LogitLoss;
-    //     let mut updater = nn.new_rmsprop_with_momentum(TrainParams::with_lr(4.0e-2), 0.85, 0.8);
-    //     for _i in 0..1500 {
-    //         train_batch(
-    //             &mut updater,
-    //             &mut nn,
-    //             |got, want| (got.logit_bce(want), got.logit_bce_input_grads(want)),
-    //             &mut || problem.sample(),
-    //             6,
-    //         );
-    //     }
-
-    //     for _ in 0..30 {
-    //         let (input, target) = problem.sample();
-    //         let out = nn.forward(&input).unwrap();
-    //         let loss = out.logit_bce(&target);
-    //         println!(
-    //             "input={:?}: got={:?}, want={:?}: loss={}",
-    //             input, out, target, loss
-    //         );
-    //         assert!(loss < 0.2);
-    //     }
-    // }
 }

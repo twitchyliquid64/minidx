@@ -4,8 +4,14 @@ name = "minidx"
 version = "0.1.0"
 license = "MIT OR Apache-2.0"
 
+[features]
+default = ["vis"]
+vis = ["dep:minidx-vis"]
+
 [dependencies]
 minidx-core.workspace = true
 num-traits.workspace = true
 rand.workspace = true
 rand_distr.workspace = true
+
+minidx-vis = {workspace = true, optional = true}

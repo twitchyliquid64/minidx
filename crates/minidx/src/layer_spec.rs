@@ -1,13 +1,14 @@
 //! Descriptors of different neural layers which can be composed into a network.
 
 use minidx_core::layers::{Activation, Bias1d, Dense as DenseL, Softmax as SoftmaxL, GLU as GLUL};
+use minidx_core::matmul::MatMulImpl;
 use minidx_core::Dtype;
 
 /// A fully-connected layer with a fixed number of inputs and outputs. No bias.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Dense<const I: usize, const O: usize> {}
 
-impl<const I: usize, const O: usize, E: Dtype> crate::Buildable<E> for Dense<I, O> {
+impl<const I: usize, const O: usize, E: Dtype + MatMulImpl> crate::Buildable<E> for Dense<I, O> {
     type Built = DenseL<E, I, O>;
     fn try_build(&self) -> Result<Self::Built, crate::Error> {
         Ok(DenseL::default())
@@ -21,7 +22,7 @@ impl<const I: usize, const O: usize, E: Dtype> crate::Buildable<E> for Dense<I, 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Linear<const I: usize, const O: usize> {}
 
-impl<const I: usize, const O: usize, E: Dtype> crate::Buildable<E> for Linear<I, O> {
+impl<const I: usize, const O: usize, E: Dtype + MatMulImpl> crate::Buildable<E> for Linear<I, O> {
     type Built = (DenseL<E, I, O>, Bias1d<E, O>);
     fn try_build(&self) -> Result<Self::Built, crate::Error> {
         Ok((DenseL::default(), Bias1d::default()))
@@ -88,7 +89,7 @@ impl<E: Dtype + minidx_core::Float> crate::Buildable<E> for Softmax {
 #[derive(Clone, Copy, Debug, Default)]
 pub struct GLU<const I: usize, const O: usize> {}
 
-impl<const I: usize, const O: usize, E: Dtype + minidx_core::Float> crate::Buildable<E>
+impl<const I: usize, const O: usize, E: Dtype + minidx_core::Float + MatMulImpl> crate::Buildable<E>
     for GLU<I, O>
 {
     type Built = GLUL<E, I, O, Activation<E>>;
@@ -107,7 +108,7 @@ impl<const I: usize, const O: usize> Default for GLULeakyRelu<I, O> {
     }
 }
 
-impl<const I: usize, const O: usize, E: Dtype + minidx_core::Float> crate::Buildable<E>
+impl<const I: usize, const O: usize, E: Dtype + minidx_core::Float + MatMulImpl> crate::Buildable<E>
     for GLULeakyRelu<I, O>
 {
     type Built = GLUL<E, I, O, Activation<E>>;
