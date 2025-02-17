@@ -49,6 +49,48 @@ pub fn train_step<
     network.update(ga, gradient_updates).expect("update failed");
 }
 
+/// Does a training minibatch, updating a network based on averaged gradients from
+/// computing N input-output pairs.
+pub fn train_batch<
+    Input,
+    LV: Float,
+    Network: BackpropModule<Input>,
+    GA: GradAdjuster<Network::SelfGrads> + GradApplyer,
+    S: FnMut() -> (Input, Network::Output),
+>(
+    ga: &mut GA,
+    network: &mut Network,
+    loss: impl Fn(&Network::Output, &Network::Output) -> (LV, Network::Output),
+    source: &mut S,
+    batch_size: usize,
+) where
+    // Network::Output: std::fmt::Debug,
+    LV: std::ops::Mul<f32, Output = f32>,
+    <Network as modules::BackpropModule<Input>>::SelfGrads: Gradients,
+{
+    let mut grads: Option<(Network::SelfGrads, LV)> = None;
+
+    let (mut grads, lv) = (0..batch_size).into_iter().fold(
+        (Network::SelfGrads::empty(), LV::default()),
+        |(mut accumulated_grads, mut accumulated_lv), _i| {
+            let (input, output) = source();
+
+            let (out, trace) = network.traced_forward(input).unwrap();
+            let (lv, loss_grads) = loss(&out, &output);
+
+            let (_, gradient_updates) = network.backprop(&trace, loss_grads);
+            accumulated_grads.add(gradient_updates);
+            accumulated_lv += lv;
+
+            (accumulated_grads, accumulated_lv)
+        },
+    );
+
+    grads.scale((batch_size as f32).recip());
+    let gradient_updates = ga.adjust(grads, lv.to_f32().unwrap() * (batch_size as f32).recip());
+    network.update(ga, gradient_updates).expect("update failed");
+}
+
 /// Something which can have its parameters visualized.
 pub trait VisualizableUnit {
     const KIND: &'static str;

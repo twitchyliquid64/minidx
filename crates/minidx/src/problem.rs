@@ -203,15 +203,14 @@ mod tests {
         let mut problem = Parity::new(rng);
 
         use minidx_core::loss::LogitLoss;
-        let mut updater = nn.new_rmsprop_with_momentum(TrainParams::with_lr(1.0e-2), 0.85, 0.7);
-        for _i in 0..4500 {
-            let (input, target) = problem.sample();
-            train_step(
+        let mut updater = nn.new_rmsprop_with_momentum(TrainParams::with_lr(2.0e-2), 0.85, 0.7);
+        for _i in 0..2500 {
+            train_batch(
                 &mut updater,
                 &mut nn,
                 |got, want| (got.logit_bce(want), got.logit_bce_input_grads(want)),
-                input,
-                target,
+                &mut || problem.sample(),
+                5,
             );
         }
 
@@ -223,7 +222,7 @@ mod tests {
                 "input={:?}: got={:?}, want={:?}: loss={}",
                 input, out, target, loss
             );
-            assert!(loss < 0.4);
+            assert!(loss < 0.3);
         }
     }
 
@@ -246,15 +245,14 @@ mod tests {
     //     let mut problem = ModularAddition10::new(rng);
 
     //     use minidx_core::loss::LogitLoss;
-    //     let mut updater = nn.new_rmsprop_with_momentum(TrainParams::with_lr(3.0e-2), 0.85, 0.8);
-    //     for _i in 0..22500 {
-    //         let (input, target) = problem.sample();
-    //         train_step(
+    //     let mut updater = nn.new_rmsprop_with_momentum(TrainParams::with_lr(4.0e-2), 0.85, 0.8);
+    //     for _i in 0..1500 {
+    //         train_batch(
     //             &mut updater,
     //             &mut nn,
     //             |got, want| (got.logit_bce(want), got.logit_bce_input_grads(want)),
-    //             input,
-    //             target,
+    //             &mut || problem.sample(),
+    //             6,
     //         );
     //     }
 

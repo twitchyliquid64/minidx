@@ -31,6 +31,14 @@ pub trait Gradients: Clone + std::fmt::Debug {
             });
     }
 
+    fn add(&mut self, other: Self) {
+        self.grad_iter_mut()
+            .zip(other.into_grads())
+            .for_each(|(g, o)| {
+                *g += o;
+            });
+    }
+
     /// Scales each gradient by the given constant.
     ///
     /// This method can be used to modulate gradient updates by some loss value and learning rate.
