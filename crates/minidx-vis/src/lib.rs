@@ -261,6 +261,6 @@ mod tests {
 
         use VisualizableNetwork;
         network.visualize(&mut dt, &mut params.clone());
-        dt.write_png("/tmp/ye.png").expect("write failed");
+        // dt.write_png("/tmp/ye.png").expect("write failed");
     }
 }

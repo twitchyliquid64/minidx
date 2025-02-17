@@ -4,6 +4,9 @@ use std::sync::mpsc::{channel, RecvError, Sender};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
+use plotters::backend::{BGRXPixel, BitMapBackend};
+use plotters::prelude::*;
+
 #[derive(Debug)]
 pub enum RecorderErr {
     Recv(RecvError),
@@ -35,7 +38,10 @@ impl<N: VisualizableNetwork<DrawTarget> + std::marker::Send + 'static> Recorder<
         thread::spawn(move || {
             let mut err = err.lock().unwrap();
 
-            // opts.offset.0 += (size.0 / 2) as f32;
+            let mut losses: Vec<(f32, f32)> = Vec::with_capacity(200);
+
+            // Offset parameters render to the right of the screen
+            opts.offset.0 += (size.0 / 2) as f32;
 
             let res = make_video(size, path.as_str(), |dt, n| match receiver.recv() {
                 Err(e) => {
@@ -43,10 +49,36 @@ impl<N: VisualizableNetwork<DrawTarget> + std::marker::Send + 'static> Recorder<
                     return false;
                 }
                 Ok((loss, network)) => {
+                    losses.push((n as f32, loss));
+
+                    // Render the parameter visualization, right
                     dt.clear(SolidSource::from_unpremultiplied_argb(
                         0xff, 0xcf, 0xcf, 0xcf,
                     ));
                     network.visualize(dt, &mut opts.clone());
+
+                    // Render the plot, left
+                    let mut chart_area = BitMapBackend::<BGRXPixel>::with_buffer_and_format(
+                        dt.get_data_u8_mut(),
+                        (size.0 as u32, size.1 as u32),
+                    )
+                    .unwrap()
+                    .into_drawing_area();
+
+                    let mut chart = ChartBuilder::on(&chart_area)
+                        .margin(5)
+                        .margin_top(50)
+                        .margin_bottom(50)
+                        .margin_right(size.0 as u32 / 2)
+                        .build_cartesian_2d(0.0f32..500f32, (0.0f32..100.0f32).log_scale())
+                        .unwrap();
+
+                    chart.configure_mesh().draw().unwrap();
+
+                    chart
+                        .draw_series(LineSeries::new(losses.iter().map(|x| *x), &RED))
+                        .unwrap();
+
                     return true;
                 }
             });

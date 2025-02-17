@@ -10,7 +10,8 @@ fn vis_as_video() {
     use minidx::problem::AxPlusB;
 
     let network = (
-        (layers::Linear::<3, 5> {}, layers::Relu),
+        (layers::Linear::<3, 12> {}, layers::Relu),
+        (layers::Linear::<12, 5> {}, layers::Relu),
         (layers::Linear::<5, 3> {}, layers::Relu),
         layers::Linear::<3, 1> {},
     );
@@ -28,16 +29,16 @@ fn vis_as_video() {
     );
 
     use minidx_core::loss::DiffLoss;
-    let mut updater = nn.new_rmsprop_with_momentum(TrainParams::with_lr(1.0e-3), 0.5, 0.8);
-    for i in 0..18000 {
+    let mut updater = nn.new_rmsprop_with_momentum(TrainParams::with_lr(2.0e-3), 0.5, 0.8);
+    for i in 0..178000 {
         train_batch(
             &mut updater,
             &mut nn,
             |got, want| (got.mse(want), got.mse_input_grads(want)),
             &mut || problem.sample(),
-            5,
+            25,
         );
-        if i % 80 == 0 {
+        if i % 340 == 0 {
             let (input, target) = problem.sample();
             let out = nn.forward(&input).unwrap();
             let loss = out.mse(&target);
