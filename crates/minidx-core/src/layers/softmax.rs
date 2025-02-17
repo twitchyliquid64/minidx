@@ -89,6 +89,14 @@ impl crate::ResetParams for Softmax {
     }
 }
 
+impl crate::VisualizableUnit for Softmax {
+    const KIND: &'static str = "softmax";
+    type Params = ();
+    fn params(&self) -> &Self::Params {
+        &()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

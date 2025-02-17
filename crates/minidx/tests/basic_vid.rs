@@ -4,16 +4,19 @@ use minidx_vis::prelude::*;
 use rand::rngs::SmallRng;
 use rand::SeedableRng;
 
+// This test MUST be run in release mode if you want it to take 2 minutes instead of 5 hours lol.
+
 #[test]
 #[ignore]
 fn vis_as_video() {
-    use minidx::problem::AxPlusB;
+    use minidx::problem::ModularAddition10;
 
     let network = (
-        (layers::Linear::<3, 12> {}, layers::Relu),
-        (layers::Linear::<12, 5> {}, layers::Relu),
-        (layers::Linear::<5, 3> {}, layers::Relu),
-        layers::Linear::<3, 1> {},
+        (layers::Linear::<20, 23> {}, layers::Sigmoid),
+        (layers::Linear::<23, 15> {}, layers::LeakyRelu(0.05)),
+        (layers::Linear::<15, 10> {}, layers::Relu),
+        layers::Linear::<10, 10> {},
+        layers::Softmax::default(),
     );
 
     let mut nn = Buildable::<f32>::build(&network);
@@ -21,7 +24,7 @@ fn vis_as_video() {
     let mut rng = SmallRng::seed_from_u64(94356213);
     nn.rand_params(&mut rng, 0.8).unwrap();
 
-    let mut problem = AxPlusB::new(-3f32..3f32, rng);
+    let mut problem = ModularAddition10::new(rng);
     let mut recorder = anim::Recorder::mp4(
         "/tmp/test_vis_as_video.mp4",
         (1080, 720),
@@ -29,20 +32,26 @@ fn vis_as_video() {
     );
 
     use minidx_core::loss::DiffLoss;
-    let mut updater = nn.new_rmsprop_with_momentum(TrainParams::with_lr(2.0e-3), 0.5, 0.8);
-    for i in 0..178000 {
+    let mut updater = nn.new_rmsprop_with_momentum(
+        TrainParams::with_lr(4.0e-3)
+            .and_l2(1.0e-6)
+            .and_lr_decay(1.5e-10),
+        0.6,
+        0.9,
+    );
+    for i in 0..578000 {
         train_batch(
             &mut updater,
             &mut nn,
             |got, want| (got.mse(want), got.mse_input_grads(want)),
             &mut || problem.sample(),
-            25,
+            20,
         );
-        if i % 340 == 0 {
+        if i % 450 == 0 {
             let (input, target) = problem.sample();
             let out = nn.forward(&input).unwrap();
             let loss = out.mse(&target);
-            recorder.push(loss, nn.clone());
+            recorder.push(i as f32, loss, nn.clone());
         }
     }
 

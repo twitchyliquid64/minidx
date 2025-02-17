@@ -6,6 +6,8 @@ pub use shapes::*;
 #[doc(hidden)]
 pub mod matmul;
 
+pub mod misc;
+
 mod iterate;
 // pub(crate) use iterate::*;
 

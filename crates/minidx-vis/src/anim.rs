@@ -1,4 +1,4 @@
-use crate::{ParamVisOpts, VisualizableNetwork};
+use crate::{LineChart, ParamVisOpts, VisualizableNetwork};
 use raqote::{DrawTarget, SolidSource};
 use std::sync::mpsc::{channel, RecvError, Sender};
 use std::sync::{Arc, Mutex};
@@ -19,7 +19,7 @@ pub enum RecorderErr {
 /// Records training progress to a video.
 pub struct Recorder<N: VisualizableNetwork<DrawTarget> + std::marker::Send> {
     marker: std::marker::PhantomData<N>,
-    sender: Option<Sender<(f32, N)>>,
+    sender: Option<Sender<(f32, f32, N)>>,
     final_error: Arc<Mutex<Option<RecorderErr>>>,
 }
 
@@ -37,8 +37,7 @@ impl<N: VisualizableNetwork<DrawTarget> + std::marker::Send + 'static> Recorder<
         let path = path.to_string();
         thread::spawn(move || {
             let mut err = err.lock().unwrap();
-
-            let mut losses: Vec<(f32, f32)> = Vec::with_capacity(200);
+            let mut loss_chart = LineChart::new(false, Some(0.5));
 
             // Offset parameters render to the right of the screen
             opts.offset.0 += (size.0 / 2) as f32;
@@ -48,8 +47,8 @@ impl<N: VisualizableNetwork<DrawTarget> + std::marker::Send + 'static> Recorder<
                     *err = Some(RecorderErr::Recv(e));
                     return false;
                 }
-                Ok((loss, network)) => {
-                    losses.push((n as f32, loss));
+                Ok((epoch, loss, network)) => {
+                    loss_chart.push(epoch, loss);
 
                     // Render the parameter visualization, right
                     dt.clear(SolidSource::from_unpremultiplied_argb(
@@ -58,27 +57,7 @@ impl<N: VisualizableNetwork<DrawTarget> + std::marker::Send + 'static> Recorder<
                     network.visualize(dt, &mut opts.clone());
 
                     // Render the plot, left
-                    let mut chart_area = BitMapBackend::<BGRXPixel>::with_buffer_and_format(
-                        dt.get_data_u8_mut(),
-                        (size.0 as u32, size.1 as u32),
-                    )
-                    .unwrap()
-                    .into_drawing_area();
-
-                    let mut chart = ChartBuilder::on(&chart_area)
-                        .margin(5)
-                        .margin_top(50)
-                        .margin_bottom(50)
-                        .margin_right(size.0 as u32 / 2)
-                        .build_cartesian_2d(0.0f32..500f32, (0.0f32..100.0f32).log_scale())
-                        .unwrap();
-
-                    chart.configure_mesh().draw().unwrap();
-
-                    chart
-                        .draw_series(LineSeries::new(losses.iter().map(|x| *x), &RED))
-                        .unwrap();
-
+                    loss_chart.draw(dt, 5, size.0 as u32 / 2, 50, 50);
                     return true;
                 }
             });
@@ -94,9 +73,9 @@ impl<N: VisualizableNetwork<DrawTarget> + std::marker::Send + 'static> Recorder<
     /// Push sends a checkpoint and its corresponding loss value to the recorder.
     ///
     /// Each call to push corresponds with a single frame.
-    pub fn push(&mut self, loss: f32, network: N) {
+    pub fn push(&mut self, epoch: f32, loss: f32, network: N) {
         if let Some(sender) = &self.sender {
-            sender.send((loss, network)).unwrap();
+            sender.send((epoch, loss, network)).unwrap();
         }
     }
 
@@ -144,7 +123,7 @@ fn make_video<F: FnMut(&mut DrawTarget, usize) -> bool>(
             "-c:v",
             "libx264",
             "-crf",
-            "23",
+            "21",
             "-profile:v",
             "baseline",
             "-level",

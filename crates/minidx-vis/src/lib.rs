@@ -2,6 +2,9 @@ use fontdue::layout::LayoutSettings;
 use minidx_core::Dtype;
 use raqote::*;
 
+mod chart;
+use chart::LineChart;
+
 mod network_traits;
 pub use network_traits::VisualizableNetwork;
 

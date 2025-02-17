@@ -12,6 +12,7 @@ impl<E: Dtype + minidx_core::matmul::MatMulImpl, const I: usize, const O: usize>
 {
 }
 impl<E: Float> LayerMarker for minidx_core::layers::Activation<E> {}
+impl LayerMarker for minidx_core::layers::Softmax {}
 
 /// Some composition of parameters which can be visualized.
 pub trait VisualizableNetwork<DT> {

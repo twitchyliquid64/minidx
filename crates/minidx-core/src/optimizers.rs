@@ -23,6 +23,8 @@ pub struct TrainParams {
     pub lr: f32,
     pub l1_reg: f32,
     pub l2_reg: f32,
+
+    pub lr_decay: Option<f32>,
 }
 
 impl Default for TrainParams {
@@ -31,6 +33,7 @@ impl Default for TrainParams {
             lr: 1.0e-8,
             l1_reg: 0.0,
             l2_reg: 0.0,
+            lr_decay: None,
         }
     }
 }
@@ -57,6 +60,14 @@ impl TrainParams {
     /// This method can be chained in a builder-pattern kind of way.
     pub fn and_l2(mut self, l2: f32) -> Self {
         self.l2_reg = l2;
+        self
+    }
+
+    /// Sets the learning rate (linear) decay, keeping all other parameters unaffected.
+    ///
+    /// This method can be chained in a builder-pattern kind of way.
+    pub fn and_lr_decay(mut self, lr_decay: f32) -> Self {
+        self.lr_decay = Some(lr_decay);
         self
     }
 }
@@ -100,6 +111,12 @@ impl GradApplyer for TrainParams {
 
                 *w += u - reg_penalty;
             });
+
+        if let Some(lr_decay) = self.lr_decay {
+            if self.lr > lr_decay {
+                self.lr -= lr_decay;
+            }
+        }
         Ok(())
     }
 }
