@@ -25,6 +25,9 @@ pub struct TrainParams {
     pub l2_reg: f32,
 
     pub lr_decay: Option<f32>,
+    pub soft_start_epochs: Option<usize>,
+
+    epoch: usize,
 }
 
 impl Default for TrainParams {
@@ -34,6 +37,8 @@ impl Default for TrainParams {
             l1_reg: 0.0,
             l2_reg: 0.0,
             lr_decay: None,
+            soft_start_epochs: None,
+            epoch: 0,
         }
     }
 }
@@ -70,11 +75,32 @@ impl TrainParams {
         self.lr_decay = Some(lr_decay);
         self
     }
+
+    /// Sets the number of epochs the lr should linearly ramp up to the LR at the start of training.
+    ///
+    /// This method can be chained in a builder-pattern kind of way.
+    pub fn and_soft_start(mut self, epochs: usize) -> Self {
+        self.soft_start_epochs = Some(epochs);
+        self
+    }
+
+    fn current_lr(&self) -> f32 {
+        match self.soft_start_epochs {
+            Some(soft_start_epochs) => {
+                if self.epoch < soft_start_epochs {
+                    self.lr / soft_start_epochs as f32 * (1+self.epoch) as f32
+                } else {
+                    self.lr
+                }
+            }
+            None => self.lr,
+        }
+    }
 }
 
 impl<G: Gradients> GradAdjuster<G> for TrainParams {
     fn adjust(&mut self, mut gradient_updates: G, loss: f32) -> G {
-        let l = G::Concrete::from_f32(-loss * self.lr).unwrap();
+        let l = G::Concrete::from_f32(-loss * self.current_lr()).unwrap();
         gradient_updates.grad_iter_mut().for_each(|g| *g *= l);
         gradient_updates
     }
@@ -117,6 +143,7 @@ impl GradApplyer for TrainParams {
                 self.lr -= lr_decay;
             }
         }
+        self.epoch += 1;
         Ok(())
     }
 }
@@ -146,7 +173,7 @@ impl<G: Gradients> Momentum<G> {
 
     fn update(&mut self, gradient_updates: G, loss: f32) -> G {
         let mc = G::Concrete::from_f32(self.momentum_coeff).unwrap();
-        let loss = G::Concrete::from_f32(-loss * self.params.lr).unwrap();
+        let loss = G::Concrete::from_f32(-loss * self.params.current_lr()).unwrap();
 
         // v = coeff * last_v + gradient_updates
         self.velocity

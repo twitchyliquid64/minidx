@@ -35,7 +35,8 @@ fn vis_as_video() {
     let mut updater = nn.new_rmsprop_with_momentum(
         TrainParams::with_lr(4.0e-3)
             .and_l2(1.0e-6)
-            .and_lr_decay(1.5e-10),
+            .and_lr_decay(1.5e-10)
+            .and_soft_start(200),
         0.6,
         0.9,
     );
@@ -47,7 +48,7 @@ fn vis_as_video() {
             &mut || problem.sample(),
             20,
         );
-        if i % 450 == 0 {
+        if i % 350 == 0 {
             let (input, target) = problem.sample();
             let out = nn.forward(&input).unwrap();
             let loss = out.mse(&target);
