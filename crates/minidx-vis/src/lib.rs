@@ -8,7 +8,11 @@ pub use network_traits::VisualizableNetwork;
 mod font;
 pub use font::VisFont;
 
+pub mod anim;
+
 pub mod prelude {
+    pub use crate::anim;
+    pub use crate::ParamVisOpts;
     pub use crate::VisualizableNetwork;
 }
 
@@ -73,13 +77,22 @@ impl Default for ParamVisOpts {
 impl ParamVisOpts {
     /// Returns a new [ParamVisOpts] with the offset updated for laying out
     /// the next module.
-    pub fn update_cursor(&self, offset: (f32, f32)) -> Self {
+    pub fn update_cursor(&mut self, offset: (f32, f32)) -> &mut Self {
+        self.offset.0 += offset.0;
+        self.offset.1 += offset.1 + self.module_padding.1;
+
+        self
+    }
+
+    /// A small-cell variant.
+    pub fn small() -> Self {
         Self {
-            offset: (
-                offset.0 + self.offset.0,
-                offset.1 + self.offset.1 + self.module_padding.1,
-            ),
-            ..self.clone()
+            cell: ParamBox {
+                w: 20.0,
+                h: 20.0,
+                font_size: 9.0,
+            },
+            ..Default::default()
         }
     }
 }
@@ -95,10 +108,7 @@ trait PaintParams<P> {
 impl PaintParams<()> for DrawTarget {
     type Concrete = ();
     fn layout_bounds(&self, opts: &ParamVisOpts) -> (f32, f32) {
-        (
-            opts.offset.0 + opts.module_padding.0,
-            opts.offset.1 + opts.module_padding.1,
-        )
+        (opts.module_padding.0, opts.module_padding.1)
     }
 
     fn paint_params(&mut self, _params: &(), _opts: &mut ParamVisOpts) {}
@@ -107,10 +117,7 @@ impl PaintParams<()> for DrawTarget {
 impl<E: Dtype, const I: usize, const O: usize> PaintParams<[[E; I]; O]> for DrawTarget {
     type Concrete = [[E; I]; O];
     fn layout_bounds(&self, opts: &ParamVisOpts) -> (f32, f32) {
-        (
-            opts.offset.0 + opts.cell.w * I as f32,
-            opts.offset.1 + opts.cell.h * O as f32,
-        )
+        (opts.cell.w * I as f32, opts.cell.h * O as f32)
     }
 
     fn paint_params(&mut self, params: &[[E; I]; O], opts: &mut ParamVisOpts) {
@@ -253,7 +260,7 @@ mod tests {
         let params = ParamVisOpts::default();
 
         use VisualizableNetwork;
-        network.visualize(&mut dt, params);
-        // dt.write_png("/tmp/ye.png").expect("write failed");
+        network.visualize(&mut dt, &mut params.clone());
+        dt.write_png("/tmp/ye.png").expect("write failed");
     }
 }

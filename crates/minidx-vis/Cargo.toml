@@ -9,3 +9,7 @@ minidx-core.workspace = true
 raqote.workspace = true
 rust-fontconfig.workspace = true
 fontdue.workspace = true
+
+[target.'cfg(not(target_os = "windows"))'.dependencies]
+command-fds = "0.3"
+os_pipe = "1.2"

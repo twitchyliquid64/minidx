@@ -17,7 +17,7 @@ impl<E: Float> LayerMarker for minidx_core::layers::Activation<E> {}
 pub trait VisualizableNetwork<DT> {
     type Params: std::fmt::Debug + Sized;
 
-    fn visualize(&self, dt: &mut DT, opts: ParamVisOpts) -> (f32, f32);
+    fn visualize(&self, dt: &mut DT, opts: &mut ParamVisOpts) -> (f32, f32);
 }
 
 impl<M: minidx_core::VisualizableUnit + LayerMarker> VisualizableNetwork<DrawTarget> for M
@@ -26,9 +26,9 @@ where
 {
     type Params = M::Params;
 
-    fn visualize(&self, dt: &mut DrawTarget, mut opts: ParamVisOpts) -> (f32, f32) {
+    fn visualize(&self, dt: &mut DrawTarget, opts: &mut ParamVisOpts) -> (f32, f32) {
         let bounds = dt.layout_bounds(&opts);
-        dt.paint_params(self.params(), &mut opts);
+        dt.paint_params(self.params(), opts);
         (0.0, bounds.1)
     }
 }
@@ -44,12 +44,10 @@ macro_rules! tuple_impls {
                 $($name::Params,)+
             );
 
-            fn visualize(&self, dt: &mut DrawTarget, mut opts: ParamVisOpts) -> (f32, f32) {
-                opts.offset.0 += opts.module_padding.0;
-
-                let offset = self.0.visualize(dt, opts.clone());
-                $(let offset = self.$idx.visualize(dt, opts.update_cursor(offset));)*
-                offset
+            fn visualize(&self, dt: &mut DrawTarget, opts: &mut ParamVisOpts) -> (f32, f32) {
+                let bounds = self.0.visualize(dt, opts);
+                $(let bounds = self.$idx.visualize(dt, opts.update_cursor(bounds));)*
+                bounds
             }
         }
     }

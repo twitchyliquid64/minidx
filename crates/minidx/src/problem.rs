@@ -20,13 +20,13 @@ pub struct AxPlusB<E: Dtype, RNG: rand::Rng> {
 }
 
 impl<E: Dtype, RNG: rand::Rng> AxPlusB<E, RNG> {
-    fn new(domain: Range<E>, rng: RNG) -> Self {
+    pub fn new(domain: Range<E>, rng: RNG) -> Self {
         Self { domain, rng }
     }
 }
 
 impl<E: Dtype + std::ops::Neg<Output = E>, RNG: rand::Rng> AxPlusB<E, RNG> {
-    fn default_with_rng(rng: RNG) -> Self {
+    pub fn default_with_rng(rng: RNG) -> Self {
         Self {
             domain: Range {
                 start: E::ONE.neg(),
