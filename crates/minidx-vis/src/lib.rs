@@ -174,8 +174,7 @@ impl<E: Dtype, const I: usize, const O: usize> PaintParams<[[E; I]; O]> for Draw
                 };
                 s.truncate(3);
 
-                // Layout the text
-                let glyphs = opts.font.layout_str(
+                opts.font.raster(
                     &LayoutSettings {
                         x: tl.0,
                         y: tl.1 + 1.0,
@@ -187,36 +186,9 @@ impl<E: Dtype, const I: usize, const O: usize> PaintParams<[[E; I]; O]> for Draw
                     },
                     s.as_str(),
                     opts.cell.font_size,
+                    (201, 201, 201),
+                    self,
                 );
-
-                // Raster the text
-                let (rc, gc, bc) = (201, 201, 201);
-                for (b, g) in glyphs {
-                    let mut buf = Vec::new();
-                    buf.resize(g.width * g.height, 0);
-                    for (i, x) in b.into_iter().enumerate() {
-                        let s = SolidSource::from_unpremultiplied_argb(x, rc, gc, bc);
-                        buf[i] = (u32::from(s.a) << 24)
-                            | (u32::from(s.r) << 16)
-                            | (u32::from(s.g) << 8)
-                            | u32::from(s.b);
-                    }
-
-                    let img = raqote::Image {
-                        width: g.width as i32,
-                        height: g.height as i32,
-                        data: &buf[..],
-                    };
-
-                    self.draw_image_with_size_at(
-                        g.width as f32,
-                        g.height as f32,
-                        g.x,
-                        g.y,
-                        &img,
-                        &DrawOptions::default(),
-                    );
-                }
             }
         }
     }

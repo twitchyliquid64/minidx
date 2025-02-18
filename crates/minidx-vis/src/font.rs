@@ -1,6 +1,8 @@
 use fontdue::layout::{GlyphPosition, Layout, LayoutSettings, TextStyle};
 use fontdue::Font;
 
+use raqote::{DrawOptions, DrawTarget, SolidSource};
+
 /// A loaded font for use in rastering text during visualization.
 pub struct VisFont {
     layout: Layout<()>,
@@ -95,5 +97,44 @@ impl VisFont {
             .glyphs()
             .iter()
             .map(|g| (self.font.rasterize_config(g.key).1, g))
+    }
+
+    pub fn raster(
+        &mut self,
+        layout_settings: &LayoutSettings,
+        text: &str,
+        font_size: f32,
+        rgb: (u8, u8, u8),
+        dt: &mut DrawTarget,
+    ) {
+        let glyphs = self.layout_str(layout_settings, text, font_size);
+
+        let (rc, gc, bc) = rgb;
+        for (b, g) in glyphs {
+            let mut buf = Vec::new();
+            buf.resize(g.width * g.height, 0);
+            for (i, x) in b.into_iter().enumerate() {
+                let s = SolidSource::from_unpremultiplied_argb(x, rc, gc, bc);
+                buf[i] = (u32::from(s.a) << 24)
+                    | (u32::from(s.r) << 16)
+                    | (u32::from(s.g) << 8)
+                    | u32::from(s.b);
+            }
+
+            let img = raqote::Image {
+                width: g.width as i32,
+                height: g.height as i32,
+                data: &buf[..],
+            };
+
+            dt.draw_image_with_size_at(
+                g.width as f32,
+                g.height as f32,
+                g.x,
+                g.y,
+                &img,
+                &DrawOptions::default(),
+            );
+        }
     }
 }

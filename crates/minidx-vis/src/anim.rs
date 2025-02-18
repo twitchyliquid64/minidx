@@ -7,6 +7,8 @@ use std::thread;
 use plotters::backend::{BGRXPixel, BitMapBackend};
 use plotters::prelude::*;
 
+use fontdue::layout::LayoutSettings;
+
 #[derive(Debug)]
 pub enum RecorderErr {
     Recv(RecvError),
@@ -42,7 +44,7 @@ impl<N: VisualizableNetwork<DrawTarget> + std::marker::Send + 'static> Recorder<
             // Offset parameters render to the right of the screen
             opts.offset.0 += (size.0 / 2) as f32;
 
-            let res = make_video(size, path.as_str(), |dt, n| match receiver.recv() {
+            let res = make_video(size, path.as_str(), |dt, _n| match receiver.recv() {
                 Err(e) => {
                     *err = Some(RecorderErr::Recv(e));
                     return false;
@@ -58,6 +60,23 @@ impl<N: VisualizableNetwork<DrawTarget> + std::marker::Send + 'static> Recorder<
 
                     // Render the plot, left
                     loss_chart.draw(dt, 5, size.0 as u32 / 2, 50, 50);
+
+                    opts.font.raster(
+                        &LayoutSettings {
+                            x: 1 as f32,
+                            y: (size.1 - 48) as f32,
+                            max_width: Some(size.0 as f32 / 2.0),
+                            max_height: Some(50.0),
+                            horizontal_align: fontdue::layout::HorizontalAlign::Left,
+                            vertical_align: fontdue::layout::VerticalAlign::Bottom,
+                            ..LayoutSettings::default()
+                        },
+                        format!("L: {:05.3} - N: {:05}", loss, epoch).as_str(),
+                        30.0,
+                        (10, 10, 10),
+                        dt,
+                    );
+
                     return true;
                 }
             });

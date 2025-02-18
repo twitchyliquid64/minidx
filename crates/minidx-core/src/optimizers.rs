@@ -88,7 +88,7 @@ impl TrainParams {
         match self.soft_start_epochs {
             Some(soft_start_epochs) => {
                 if self.epoch < soft_start_epochs {
-                    self.lr / soft_start_epochs as f32 * (1+self.epoch) as f32
+                    self.lr / soft_start_epochs as f32 * (1 + self.epoch) as f32
                 } else {
                     self.lr
                 }
