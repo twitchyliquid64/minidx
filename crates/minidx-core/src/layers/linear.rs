@@ -1,5 +1,5 @@
 use crate::matmul::MatMulImpl;
-use crate::{Dim, Dtype, Shape};
+use crate::{Dtype, Shape};
 
 /// A fully-connected layer with a fixed number of inputs and outputs. No bias.
 #[derive(Clone, Debug)]

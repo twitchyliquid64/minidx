@@ -32,15 +32,16 @@ fn vis_as_video() {
     );
 
     use minidx_core::loss::DiffLoss;
-    let mut updater = nn.new_rmsprop_with_momentum(
-        TrainParams::with_lr(4.0e-3)
-            .and_l2(4.0e-7)
-            .and_lr_decay(5.0e-10)
-            .and_gradient_clip(5.0)
-            .and_soft_start(500),
-        0.6,
-        0.9,
-    );
+    let mut updater = nn
+        .new_rmsprop_with_momentum(
+            TrainParams::with_lr(4.0e-3)
+                .and_l2(4.0e-7)
+                .and_lr_decay(4.0e-10)
+                .and_soft_start(500),
+            0.6,
+            0.9,
+        )
+        .and_similarity_penalty(0.5);
     for i in 0..578000 {
         train_batch(
             &mut updater,

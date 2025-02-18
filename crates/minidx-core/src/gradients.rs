@@ -47,6 +47,32 @@ pub trait Gradients: Clone + std::fmt::Debug {
             .for_each(|g| *g *= Self::Concrete::from_f32(s).unwrap());
     }
 
+    /// Returns the cosine similarity between the two gradients.
+    fn cosine_similarity(&self, other: &Self) -> Option<f32> {
+        use num_traits::ToPrimitive;
+        let dot_product: f32 = self
+            .grad_iter()
+            .zip(other.grad_iter())
+            .map(|(x, y)| (*x * *y).to_f32().unwrap())
+            .sum();
+        let magnitude_a: f32 = self
+            .grad_iter()
+            .map(|x| (*x * *x).to_f32().unwrap())
+            .sum::<f32>()
+            .sqrt();
+        let magnitude_b: f32 = other
+            .grad_iter()
+            .map(|x| (*x * *x).to_f32().unwrap())
+            .sum::<f32>()
+            .sqrt();
+
+        if magnitude_a == 0.0 || magnitude_b == 0.0 {
+            return None;
+        }
+
+        Some(dot_product / (magnitude_a * magnitude_b))
+    }
+
     /// Returns an empty gradient object
     fn empty() -> Self;
 }

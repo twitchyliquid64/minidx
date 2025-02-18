@@ -183,6 +183,8 @@ pub struct Momentum<G: Gradients> {
     params: TrainParams,
     velocity: G,
     momentum_coeff: f32,
+
+    similarity_term: Option<f32>,
 }
 
 impl<G: Gradients> Momentum<G> {
@@ -196,19 +198,37 @@ impl<G: Gradients> Momentum<G> {
             params,
             momentum_coeff,
             velocity: G::empty(),
+            similarity_term: None, // Typical value 0.5=>1.5,
         }
+    }
+
+    /// Sets the penalty term for updates that deviate (in cosine distance) from
+    /// the velocity. Typical values are 0.5 to 1.5.
+    pub fn and_similarity_penalty(mut self, similarity_term: f32) -> Self {
+        self.similarity_term = Some(similarity_term);
+        self
     }
 
     fn update(&mut self, gradient_updates: G, loss: f32) -> G {
         let mc = G::Concrete::from_f32(self.momentum_coeff).unwrap();
         let loss = G::Concrete::from_f32(-loss * self.params.current_lr()).unwrap();
 
+        let sim_mul = G::Concrete::from_f32(if let Some(term) = self.similarity_term {
+            self.velocity
+                .cosine_similarity(&gradient_updates)
+                .map(|x| (2.0 * (x + 1.0) + term).log2() + 0.25)
+                .unwrap_or(1.0)
+        } else {
+            1.0
+        })
+        .unwrap();
+
         // v = coeff * last_v + gradient_updates
         self.velocity
             .grad_iter_mut()
             .zip(gradient_updates.into_grads())
             .for_each(|(v, g)| {
-                *v = (*v * mc) + (self.params.clip_grad(g) * loss);
+                *v = (*v * mc) + (self.params.clip_grad(g) * loss * sim_mul);
             });
 
         self.velocity.clone()
@@ -290,6 +310,15 @@ where
             base: RMSPropBase::Momentum(Momentum::new(params, momentum_coeff)),
             accumulator: G::empty(),
         }
+    }
+
+    /// Sets the penalty term for updates that deviate (in cosine distance) from
+    /// the velocity. Typical values are 0.5 to 1.5.
+    pub fn and_similarity_penalty(mut self, similarity_term: f32) -> Self {
+        if let RMSPropBase::Momentum(m) = &mut self.base {
+            m.similarity_term = Some(similarity_term);
+        }
+        self
     }
 }
 
