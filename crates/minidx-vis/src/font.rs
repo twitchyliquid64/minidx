@@ -45,6 +45,10 @@ impl VisFont {
                 ..Default::default()
             },
             FcPattern {
+                family: Some(String::from("Andale Mono")),
+                ..Default::default()
+            },
+            FcPattern {
                 family: Some(String::from("FreeMono")),
                 ..Default::default()
             },
@@ -54,6 +58,10 @@ impl VisFont {
             },
             FcPattern {
                 family: Some(String::from("FreeSans")),
+                ..Default::default()
+            },
+            FcPattern {
+                name: Some(String::from("Arial")),
                 ..Default::default()
             },
         ];

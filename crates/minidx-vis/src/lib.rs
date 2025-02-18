@@ -211,7 +211,7 @@ mod tests {
             0xff, 0xcf, 0xcf, 0xcf,
         ));
 
-        dt.paint_params(params, &mut Default::default());
+        dt.paint_params(params, &mut ParamVisOpts::small());
 
         // dt.write_png("/tmp/ye.png").expect("write failed");
     }
