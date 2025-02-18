@@ -39,7 +39,7 @@ impl<N: VisualizableNetwork<DrawTarget> + std::marker::Send + 'static> Recorder<
         let path = path.to_string();
         thread::spawn(move || {
             let mut err = err.lock().unwrap();
-            let mut loss_chart = LineChart::new(false, Some(0.5));
+            let mut loss_chart = LineChart::new(false, Some(0.7));
 
             // Offset parameters render to the right of the screen
             opts.offset.0 += (size.0 / 2) as f32;
@@ -71,7 +71,7 @@ impl<N: VisualizableNetwork<DrawTarget> + std::marker::Send + 'static> Recorder<
                             vertical_align: fontdue::layout::VerticalAlign::Bottom,
                             ..LayoutSettings::default()
                         },
-                        format!("L: {:05.3} - N: {:05}", loss, epoch).as_str(),
+                        format!("L: {:07.5} - N: {:05}", loss, epoch).as_str(),
                         30.0,
                         (10, 10, 10),
                         dt,

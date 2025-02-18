@@ -12,8 +12,8 @@ fn vis_as_video() {
     use minidx::problem::ModularAddition10;
 
     let network = (
-        (layers::Linear::<20, 23> {}, layers::Sigmoid),
-        (layers::Linear::<23, 15> {}, layers::LeakyRelu(0.05)),
+        (layers::Linear::<20, 20> {}, layers::Sigmoid),
+        (layers::Linear::<20, 15> {}, layers::LeakyRelu(0.05)),
         (layers::Linear::<15, 10> {}, layers::Relu),
         layers::Linear::<10, 10> {},
         layers::Softmax::default(),
@@ -34,9 +34,10 @@ fn vis_as_video() {
     use minidx_core::loss::DiffLoss;
     let mut updater = nn.new_rmsprop_with_momentum(
         TrainParams::with_lr(4.0e-3)
-            .and_l2(1.0e-6)
-            .and_lr_decay(1.5e-10)
-            .and_soft_start(200),
+            .and_l2(4.0e-7)
+            .and_lr_decay(5.0e-10)
+            .and_gradient_clip(5.0)
+            .and_soft_start(500),
         0.6,
         0.9,
     );
@@ -46,7 +47,7 @@ fn vis_as_video() {
             &mut nn,
             |got, want| (got.mse(want), got.mse_input_grads(want)),
             &mut || problem.sample(),
-            20,
+            10,
         );
         if i % 350 == 0 {
             let (input, target) = problem.sample();

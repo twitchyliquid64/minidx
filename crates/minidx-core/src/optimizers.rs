@@ -1,4 +1,4 @@
-use crate::{Float, Gradients, Unit};
+use crate::{Dtype, Float, Gradients, Unit};
 use num_traits::FromPrimitive;
 
 /// An object responsible for tweaking gradient updates, such as to
@@ -27,6 +27,8 @@ pub struct TrainParams {
     pub lr_decay: Option<f32>,
     pub soft_start_epochs: Option<usize>,
 
+    pub grad_clip: Option<f32>,
+
     epoch: usize,
 }
 
@@ -38,6 +40,7 @@ impl Default for TrainParams {
             l2_reg: 0.0,
             lr_decay: None,
             soft_start_epochs: None,
+            grad_clip: None,
             epoch: 0,
         }
     }
@@ -84,6 +87,13 @@ impl TrainParams {
         self
     }
 
+    /// Sets the maximum magnitude a single gradient can be. Any gradient larger in magnitude is
+    /// limited to this magnitude.
+    pub fn and_gradient_clip(mut self, clip: f32) -> Self {
+        self.grad_clip = Some(clip);
+        self
+    }
+
     fn current_lr(&self) -> f32 {
         match self.soft_start_epochs {
             Some(soft_start_epochs) => {
@@ -96,12 +106,30 @@ impl TrainParams {
             None => self.lr,
         }
     }
+
+    fn clip_grad<G: Dtype>(&self, grad: G) -> G {
+        if let Some(clip) = self.grad_clip {
+            let clip = G::from_f32(clip).unwrap();
+            let neg_clip = G::default() - clip;
+            if grad > clip {
+                clip
+            } else if grad < neg_clip {
+                neg_clip
+            } else {
+                grad
+            }
+        } else {
+            grad
+        }
+    }
 }
 
 impl<G: Gradients> GradAdjuster<G> for TrainParams {
     fn adjust(&mut self, mut gradient_updates: G, loss: f32) -> G {
         let l = G::Concrete::from_f32(-loss * self.current_lr()).unwrap();
-        gradient_updates.grad_iter_mut().for_each(|g| *g *= l);
+        gradient_updates
+            .grad_iter_mut()
+            .for_each(|g| *g = self.clip_grad(*g) * l);
         gradient_updates
     }
 }
@@ -180,7 +208,7 @@ impl<G: Gradients> Momentum<G> {
             .grad_iter_mut()
             .zip(gradient_updates.into_grads())
             .for_each(|(v, g)| {
-                *v = (*v * mc) + (g * loss);
+                *v = (*v * mc) + (self.params.clip_grad(g) * loss);
             });
 
         self.velocity.clone()
