@@ -4,6 +4,17 @@ name = "minidx-core"
 version = "0.1.0"
 license = "MIT OR Apache-2.0"
 
+description = "Core crate for minidx, a simple + compile-time neural-network library."
+homepage = "https://github.com/twitchyliquid64/minidx"
+documentation = "https://docs.rs/minidx-core"
+repository = "https://github.com/twitchyliquid64/minidx"
+
+keywords = [
+    "deep-learning",
+    "neural-network",
+    "backprop",
+]
+
 [features]
 default = ["gemm"]
 gemm = ["dep:gemm", "dep:rayon"]

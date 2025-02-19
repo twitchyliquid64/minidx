@@ -39,7 +39,7 @@ impl<N: VisualizableNetwork<DrawTarget> + std::marker::Send + 'static> Recorder<
         let path = path.to_string();
         thread::spawn(move || {
             let mut err = err.lock().unwrap();
-            let mut loss_chart = LineChart::new(false, Some(0.7));
+            let mut loss_chart = LineChart::new(false, Some(0.92));
 
             // Offset parameters render to the right of the screen
             opts.offset.0 += (size.0 / 2) as f32;

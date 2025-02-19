@@ -4,6 +4,17 @@ name = "minidx-vis"
 version = "0.1.0"
 license = "MIT OR Apache-2.0"
 
+description = "Visualization crate for minidx, a simple + compile-time neural-network library."
+homepage = "https://github.com/twitchyliquid64/minidx"
+documentation = "https://docs.rs/minidx-vis"
+repository = "https://github.com/twitchyliquid64/minidx"
+
+keywords = [
+    "deep-learning",
+    "neural-network",
+    "backprop",
+]
+
 [dependencies]
 minidx-core.workspace = true
 raqote.workspace = true

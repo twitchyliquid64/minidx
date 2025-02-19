@@ -4,6 +4,17 @@ name = "minidx"
 version = "0.1.0"
 license = "MIT OR Apache-2.0"
 
+description = "Simple, compile-time-sized neural networks."
+homepage = "https://github.com/twitchyliquid64/minidx"
+documentation = "https://docs.rs/minidx"
+repository = "https://github.com/twitchyliquid64/minidx"
+
+keywords = [
+    "deep-learning",
+    "neural-network",
+    "backprop",
+]
+
 [features]
 default = ["vis"]
 vis = ["dep:minidx-vis"]
