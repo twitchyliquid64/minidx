@@ -385,4 +385,38 @@ mod tests {
         println!("got={:?}, want={:?}: loss={}", out, func(inp), loss);
         assert!(loss < 0.15);
     }
+
+    #[test]
+    fn test_train_step_conv1d() {
+        let mut network = (layers::Conv1d::<f32, 4, 2, Const<3>>::default(),);
+        let mut rng = SmallRng::seed_from_u64(95334578);
+        network.rand_params(&mut rng, 0.5).unwrap();
+
+        // Function that sums each set of 3 elements, i.e. filter kernel = 1.0
+        let func = |inp: [f32; 4]| [inp[0] + inp[1] + inp[2], inp[1] + inp[2] + inp[3]];
+
+        let mut params = TrainParams::with_lr(4.0e-3);
+        for _i in 0..3000 {
+            let input = [
+                rng.random_range(-2.0..2.0),
+                rng.random_range(-2.0..2.0),
+                rng.random_range(-2.0..2.0),
+                rng.random_range(-2.0..2.0),
+            ];
+            let target = func(input);
+            train_step(
+                &mut params,
+                &mut network,
+                |got: &[f32; 2], want| (got.mse(want), got.mse_input_grads(want)),
+                input,
+                target,
+            );
+        }
+
+        println!("network={:?}", network.0);
+        let w = &network.0.weights;
+        assert!((w[0] - 1.0).abs() < 0.1);
+        assert!((w[1] - 1.0).abs() < 0.1);
+        assert!((w[2] - 1.0).abs() < 0.1);
+    }
 }

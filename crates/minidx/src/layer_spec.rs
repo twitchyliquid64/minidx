@@ -1,8 +1,10 @@
 //! Descriptors of different neural layers which can be composed into a network.
 
-use minidx_core::layers::{Activation, Bias1d, Dense as DenseL, Softmax as SoftmaxL, GLU as GLUL};
+use minidx_core::layers::{
+    Activation, Bias1d, Conv1d as Conv1dL, Dense as DenseL, Softmax as SoftmaxL, GLU as GLUL,
+};
 use minidx_core::matmul::MatMulImpl;
-use minidx_core::Dtype;
+use minidx_core::{Const, Dtype};
 
 /// A fully-connected layer with a fixed number of inputs and outputs. No bias.
 #[derive(Clone, Copy, Debug, Default)]
@@ -117,6 +119,25 @@ impl<const I: usize, const O: usize, E: Dtype + minidx_core::Float + MatMulImpl>
     }
 }
 
+/// A 1-dimensional convolution with specified input size, output size, and filter width.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Conv1d<const I: usize, const O: usize, const F: usize> {}
+
+impl<
+        const I: usize,
+        const O: usize,
+        const F: usize,
+        E: Dtype + minidx_core::Float + MatMulImpl,
+    > crate::Buildable<E> for Conv1d<I, O, F>
+where
+    Const<F>: minidx_core::layers::Conv1dKernel<E, Const<I>, Const<O>>,
+{
+    type Built = Conv1dL<E, I, O, Const<F>>;
+    fn try_build(&self) -> Result<Self::Built, crate::Error> {
+        Ok(Conv1dL::default())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -134,6 +155,7 @@ mod tests {
         use crate::Buildable;
         let _realized = Buildable::<f32>::build(&network);
         let _realized = Buildable::<f32>::build(&(GLU::<3, 2>::default(),));
+        let _realized = Buildable::<f32>::build(&(Conv1d::<4, 2, 3>::default(),));
     }
 
     #[test]

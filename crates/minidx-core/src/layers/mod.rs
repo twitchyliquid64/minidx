@@ -12,3 +12,6 @@ mod residual;
 pub use residual::Residual;
 mod gate;
 pub use gate::GLU;
+
+mod conv1d;
+pub use conv1d::{Conv1d, Conv1dKernel};
