@@ -16,10 +16,10 @@ pub enum Activation<E: Float> {
     ///
     /// The derivative is `sigmoid(t) * (1.0 - sigmoid(t))`.
     Sigmoid,
-    /// [Swish](https://en.wikipedia.org/wiki/Swish_function). `t / (1 + exp(-t))`.
+    /// [SiLU / Swish1](https://en.wikipedia.org/wiki/Swish_function). `t / (1 + exp(-t))`.
     ///
     /// The derivative is `sigmoid(t) * (1.0 + t * (1.0 - sigmoid(t)))`.
-    Swish,
+    SiLU,
     /// [Leaky ReLu](https://en.wikipedia.org/wiki/Rectifier_(neural_networks)#Piecewise-linear_variants). `if t > 0 { t } else { a * t }`
     LeakyRelu(E),
 }
@@ -31,7 +31,7 @@ impl<E: Float> Activation<E> {
         for (o, i) in out.iter_mut().zip(input.iter()) {
             *o = match self {
                 Activation::Sigmoid => sigmoid(*i),
-                Activation::Swish => *i * sigmoid(*i),
+                Activation::SiLU => *i * sigmoid(*i),
                 Activation::Relu => E::default().max(*i),
                 Activation::LeakyRelu(a) => {
                     if i < &E::default() {
@@ -56,7 +56,7 @@ impl<E: Float> Activation<E> {
                     // TODO: Do we need to compute sigmoid, can we just use i?
                     // Thats what dfdx does: https://github.com/coreylowman/dfdx/blob/main/dfdx-core/src/tensor_ops/sigmoid/cpu_kernel.rs#L12
                 }
-                Activation::Swish => {
+                Activation::SiLU => {
                     let sig = sigmoid(*i);
                     sig * (E::ONE + *i * E::ONE.sub(sig))
                 }
@@ -145,8 +145,8 @@ mod tests {
     }
 
     #[test]
-    fn test_swish() {
-        let layer = Activation::Swish;
+    fn test_silu() {
+        let layer = Activation::SiLU;
         let out = layer.forward(&[10.0, -10.0, 2.0]);
         assert!(out[0] > 9.9, "val is {}", out[0]);
         assert!(out[0] < 10.0, "val is {}", out[0]);

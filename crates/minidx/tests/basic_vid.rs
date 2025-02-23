@@ -13,8 +13,8 @@ fn vis_as_video() {
 
     let network = (
         (layers::Linear::<20, 30> {}, layers::Sigmoid),
-        (layers::Linear::<30, 15> {}, layers::Swish),
-        (layers::Linear::<15, 10> {}, layers::Swish),
+        (layers::Linear::<30, 15> {}, layers::SiLU),
+        (layers::Linear::<15, 10> {}, layers::SiLU),
         layers::Linear::<10, 10> {},
         layers::Softmax::default(),
     );

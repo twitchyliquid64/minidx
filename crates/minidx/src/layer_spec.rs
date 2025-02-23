@@ -70,14 +70,14 @@ impl<E: Dtype + minidx_core::Float> crate::Buildable<E> for Sigmoid {
     }
 }
 
-/// The Swish (SiLU) activation function.
+/// The SiLU (Swish /w Beta=1) activation function.
 #[derive(Clone, Copy, Debug, Default)]
-pub struct Swish;
+pub struct SiLU;
 
-impl<E: Dtype + minidx_core::Float> crate::Buildable<E> for Swish {
+impl<E: Dtype + minidx_core::Float> crate::Buildable<E> for SiLU {
     type Built = Activation<E>;
     fn try_build(&self) -> Result<Self::Built, crate::Error> {
-        Ok(Activation::<E>::Swish)
+        Ok(Activation::<E>::SiLU)
     }
 }
 
