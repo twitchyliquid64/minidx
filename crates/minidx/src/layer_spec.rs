@@ -70,6 +70,17 @@ impl<E: Dtype + minidx_core::Float> crate::Buildable<E> for Sigmoid {
     }
 }
 
+/// The Swish (SiLU) activation function.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Swish;
+
+impl<E: Dtype + minidx_core::Float> crate::Buildable<E> for Swish {
+    type Built = Activation<E>;
+    fn try_build(&self) -> Result<Self::Built, crate::Error> {
+        Ok(Activation::<E>::Swish)
+    }
+}
+
 /// A softmax layer with a given temperature.
 #[derive(Clone, Copy, Debug)]
 pub struct Softmax(pub f32);
