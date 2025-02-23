@@ -56,6 +56,8 @@ pub fn train_step<
 
 /// Does a training minibatch, updating a network based on averaged gradients from
 /// computing N input-output pairs.
+///
+/// The average loss over all samples in the batch is returned.
 pub fn train_batch<
     Input,
     LV: Float,
@@ -68,7 +70,8 @@ pub fn train_batch<
     loss: impl Fn(&Network::Output, &Network::Output) -> (LV, Network::Output),
     source: &mut S,
     batch_size: usize,
-) where
+) -> f32
+where
     // Network::Output: std::fmt::Debug,
     LV: std::ops::Mul<f32, Output = f32>,
     <Network as modules::BackpropModule<Input>>::SelfGrads: Gradients,
@@ -92,8 +95,11 @@ pub fn train_batch<
     );
 
     grads.scale((batch_size as f32).recip());
-    let gradient_updates = ga.adjust(grads, lv.to_f32().unwrap() * (batch_size as f32).recip());
+    let lv = lv.to_f32().unwrap() * (batch_size as f32).recip();
+
+    let gradient_updates = ga.adjust(grads, lv);
     network.update(ga, gradient_updates).expect("update failed");
+    lv
 }
 
 /// Something which can have its parameters visualized.

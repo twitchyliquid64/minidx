@@ -10,6 +10,23 @@ pub trait Problem {
     type Output: Sized + std::fmt::Debug;
 
     fn sample(&mut self) -> (Self::Input, Self::Output);
+
+    fn avg_loss<NN: minidx_core::Module<Self::Input, Output = Self::Output>>(
+        &mut self,
+        nn: &mut NN,
+        loss_fn: impl Fn(&Self::Output, &Self::Output) -> f32,
+        samples: usize,
+    ) -> f32 {
+        (0..samples)
+            .into_iter()
+            .map(|_| {
+                let (input, target) = self.sample();
+                let out = nn.forward(&input).unwrap();
+                loss_fn(&out, &target)
+            })
+            .sum::<f32>()
+            / samples as f32
+    }
 }
 
 /// For the problem Ax + B. Randomly generates A, x, and B uniformly in the

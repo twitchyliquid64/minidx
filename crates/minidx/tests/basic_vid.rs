@@ -13,8 +13,8 @@ fn vis_as_video() {
 
     let network = (
         (layers::Linear::<20, 30> {}, layers::Sigmoid),
-        (layers::Linear::<30, 15> {}, layers::LeakyRelu(0.05)),
-        (layers::Linear::<15, 10> {}, layers::Relu),
+        (layers::Linear::<30, 15> {}, layers::Swish),
+        (layers::Linear::<15, 10> {}, layers::Swish),
         layers::Linear::<10, 10> {},
         layers::Softmax::default(),
     );
@@ -32,29 +32,24 @@ fn vis_as_video() {
     );
 
     use minidx_core::loss::DiffLoss;
-    let mut updater = nn
-        .new_rmsprop_with_momentum(
-            TrainParams::with_lr(2.0e-3)
-                .and_l2(1.0e-7)
-                .and_lr_decay(4.0e-10)
-                .and_soft_start(500),
-            0.5,
-            0.95,
-        )
-        .and_similarity_penalty(0.5);
-    for i in 0..578000 {
-        train_batch(
+    let mut updater = nn.new_rmsprop_with_momentum(
+        TrainParams::with_lr(2.0e-3)
+            .and_l2(1.0e-6)
+            .and_soft_start(500),
+        0.8,
+        0.95,
+    );
+    for i in 0..178000 {
+        let batch_loss = train_batch(
             &mut updater,
             &mut nn,
             |got, want| (got.mse(want), got.mse_input_grads(want)),
             &mut || problem.sample(),
-            10,
+            20,
         );
-        if i % 350 == 0 {
-            let (input, target) = problem.sample();
-            let out = nn.forward(&input).unwrap();
-            let loss = out.mse(&target);
-            recorder.push(i as f32, loss, nn.clone());
+        if i % 923 == 0 {
+            let other_loss = problem.avg_loss(&mut nn, |got, want| got.mse(want), 10);
+            recorder.push(i as f32, (other_loss + batch_loss) / 2.0, nn.clone());
         }
     }
 
