@@ -112,6 +112,19 @@ impl<const I: usize, const O: usize, E: Dtype + minidx_core::Float + MatMulImpl>
     }
 }
 
+/// A GLU layer with a Swish gate.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct SwiGLU<const I: usize, const O: usize> {}
+
+impl<const I: usize, const O: usize, E: Dtype + minidx_core::Float + MatMulImpl> crate::Buildable<E>
+    for SwiGLU<I, O>
+{
+    type Built = GLUL<E, I, O, SwishL<E, O>>;
+    fn try_build(&self) -> Result<Self::Built, crate::Error> {
+        Ok(GLUL::swish())
+    }
+}
+
 /// A GLU layer with a leaky-relu gate.
 #[derive(Clone, Copy, Debug)]
 pub struct GLULeakyRelu<const I: usize, const O: usize>(pub f32);

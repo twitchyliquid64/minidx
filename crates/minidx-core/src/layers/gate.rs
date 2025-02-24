@@ -40,6 +40,14 @@ impl<E: Dtype + Float + MatMulImpl, const I: usize, const O: usize> GLU<E, I, O,
     }
 }
 
+impl<E: Dtype + Float + MatMulImpl, const I: usize, const O: usize>
+    GLU<E, I, O, super::Swish<E, O>>
+{
+    pub fn swish() -> Self {
+        Self::default()
+    }
+}
+
 impl<
         E: Dtype + Float + MatMulImpl,
         const I: usize,

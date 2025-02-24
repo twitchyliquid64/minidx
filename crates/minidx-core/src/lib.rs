@@ -393,6 +393,38 @@ mod tests {
     }
 
     #[test]
+    fn test_swiglu() {
+        let mut network = (
+            layers::GLU::<f32, 1, 4, layers::Swish<f32, 4>>::default(),
+            layers::Dense::<f32, 4, 1>::default(),
+            layers::Bias1d::<f32, 1>::default(),
+        );
+        let mut rng = SmallRng::seed_from_u64(43);
+        network.rand_params(&mut rng, 0.5).unwrap();
+
+        let func = |inp| inp - 2.2;
+
+        let mut updater = network.new_momentum(TrainParams::with_lr(1.0e-3), 0.1);
+        for _i in 0..1000 {
+            let input = rng.random_range(-4.0..4.0);
+            let target = [func(input)];
+            train_step(
+                &mut updater,
+                &mut network,
+                |got, want| (got.mse(want), got.mse_input_grads(want)),
+                [input],
+                target,
+            );
+        }
+
+        let inp = 3.2;
+        let out = network.forward(&[inp]).unwrap();
+        let loss = out.mse(&[func(inp)]);
+        println!("got={:?}, want={:?}: loss={}", out, func(inp), loss);
+        assert!(loss < 0.15);
+    }
+
+    #[test]
     fn test_train_step_conv1d() {
         let mut network = (layers::Conv1d::<f32, 4, 2, Const<3>>::default(),);
         let mut rng = SmallRng::seed_from_u64(95334578);
