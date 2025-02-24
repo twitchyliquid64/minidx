@@ -1,7 +1,8 @@
 //! Descriptors of different neural layers which can be composed into a network.
 
 use minidx_core::layers::{
-    Activation, Bias1d, Conv1d as Conv1dL, Dense as DenseL, Softmax as SoftmaxL, GLU as GLUL,
+    Activation, Bias1d, Conv1d as Conv1dL, Dense as DenseL, Softmax as SoftmaxL, Swish as SwishL,
+    GLU as GLUL,
 };
 use minidx_core::matmul::MatMulImpl;
 use minidx_core::{Const, Dtype};
@@ -146,6 +147,17 @@ where
     type Built = Conv1dL<E, I, O, Const<F>>;
     fn try_build(&self) -> Result<Self::Built, crate::Error> {
         Ok(Conv1dL::default())
+    }
+}
+
+/// The Swish activation function with learnable beta.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Swish<const I: usize> {}
+
+impl<const I: usize, E: Dtype + minidx_core::Float> crate::Buildable<E> for Swish<I> {
+    type Built = SwishL<E, I>;
+    fn try_build(&self) -> Result<Self::Built, crate::Error> {
+        Ok(SwishL::default())
     }
 }
 

@@ -239,7 +239,7 @@ mod tests {
             (
                 layers::Dense::<f32, 1, 4>::default(),
                 layers::Bias1d::<f32, 4>::default(),
-                layers::Activation::Relu,
+                layers::Swish::<f32, 4>::default(),
             ),
             (
                 layers::Dense::<f32, 4, 2>::default(),

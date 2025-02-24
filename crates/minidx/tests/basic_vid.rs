@@ -12,7 +12,7 @@ fn vis_as_video() {
     use minidx::problem::ModularAddition10;
 
     let network = (
-        (layers::Linear::<20, 30> {}, layers::Sigmoid),
+        (layers::Linear::<20, 30> {}, layers::Swish::<30> {}),
         (layers::Linear::<30, 15> {}, layers::SiLU),
         (layers::Linear::<15, 10> {}, layers::SiLU),
         layers::Linear::<10, 10> {},

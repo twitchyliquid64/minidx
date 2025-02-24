@@ -1,6 +1,6 @@
 use crate::Float;
 
-fn sigmoid<E: Float>(i: E) -> E {
+pub(crate) fn sigmoid<E: Float>(i: E) -> E {
     E::ONE / (E::ONE + i.neg().exp())
 }
 
