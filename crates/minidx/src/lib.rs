@@ -1,7 +1,7 @@
 pub use minidx_core as core;
 
 pub mod layer_spec;
-pub use minidx_core::{train_batch, train_step};
+pub use minidx_core::{train_batch, train_batch_parallel, train_step};
 use minidx_core::{Dtype, Error};
 
 pub mod prelude {
@@ -10,7 +10,7 @@ pub mod prelude {
     pub use minidx_core::optimizers::TrainParams;
     pub use minidx_core::{BackpropModule, Error, Module, ResetParams, TracedModule};
 
-    pub use crate::{train_batch, train_step};
+    pub use crate::{train_batch, train_batch_parallel, train_step};
 }
 
 pub mod problem;

@@ -41,11 +41,11 @@ fn vis_as_video() {
         TrainParams::with_lr(2.0e-3)
             .and_l2(1.0e-6)
             .and_soft_start(500),
-        0.75,
+        0.8,
         0.95,
     );
-    for i in 0..250000 {
-        let batch_loss = train_batch(
+    for i in 0..450000 {
+        let batch_loss = train_batch_parallel(
             &mut updater,
             &mut nn,
             |got, want| (got.mse(want), got.mse_input_grads(want)),

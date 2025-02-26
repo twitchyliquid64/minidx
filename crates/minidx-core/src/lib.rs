@@ -61,6 +61,53 @@ pub fn train_step<
 pub fn train_batch<
     Input,
     LV: Float,
+    Network: BackpropModule<Input>,
+    GA: GradAdjuster<Network::SelfGrads> + GradApplyer,
+    S: FnMut() -> (Input, Network::Output),
+>(
+    ga: &mut GA,
+    network: &mut Network,
+    loss: impl Fn(&Network::Output, &Network::Output) -> (LV, Network::Output),
+    source: &mut S,
+    batch_size: usize,
+) -> f32
+where
+    // Network::Output: std::fmt::Debug,
+    LV: std::ops::Mul<f32, Output = f32>,
+    <Network as modules::BackpropModule<Input>>::SelfGrads: Gradients,
+{
+    let mut grads: Option<(Network::SelfGrads, LV)> = None;
+
+    let (mut grads, lv) = (0..batch_size).into_iter().fold(
+        (Network::SelfGrads::empty(), LV::default()),
+        |(mut accumulated_grads, mut accumulated_lv), _i| {
+            let (input, output) = source();
+
+            let (out, trace) = network.traced_forward(input).unwrap();
+            let (lv, loss_grads) = loss(&out, &output);
+
+            let (_, gradient_updates) = network.backprop(&trace, loss_grads);
+            accumulated_grads.add(gradient_updates);
+            accumulated_lv += lv;
+
+            (accumulated_grads, accumulated_lv)
+        },
+    );
+
+    grads.scale((batch_size as f32).recip());
+    let lv = lv.to_f32().unwrap() * (batch_size as f32).recip();
+
+    let gradient_updates = ga.adjust(grads, lv);
+    network.update(ga, gradient_updates).expect("update failed");
+    lv
+}
+
+/// Parallel version of [train_batch]. More threads is not necessarily faster.
+///
+/// The average loss over all samples in the batch is returned.
+pub fn train_batch_parallel<
+    Input,
+    LV: Float,
     Network: BackpropModule<Input> + Sized + Sync + Send,
     GA: GradAdjuster<Network::SelfGrads> + GradApplyer,
     S: FnMut() -> (Input, Network::Output),
@@ -77,7 +124,7 @@ where
     (Input, Network::Output): Sized + Sync + Send,
     <Network as modules::BackpropModule<Input>>::SelfGrads: Gradients + Sync + Send,
 {
-    use rayon::{iter::repeatn, prelude::*};
+    use rayon::prelude::*;
 
     let batch: Vec<_> = (0..batch_size).map(|_| source()).collect();
     let (mut grads, lv) = batch
@@ -397,7 +444,7 @@ mod tests {
     }
 
     #[test]
-    fn test_swiglu() {
+    fn test_swiglu_and_train_batch_parallel() {
         let mut network = (
             layers::GLU::<f32, 1, 4, layers::Swish<f32, 4>>::default(),
             layers::Dense::<f32, 4, 1>::default(),
@@ -408,16 +455,18 @@ mod tests {
 
         let func = |inp| inp - 2.2;
 
-        let mut updater = network.new_momentum(TrainParams::with_lr(1.0e-3), 0.1);
+        let mut updater = network.new_momentum(TrainParams::with_lr(5.0e-3), 0.1);
         for _i in 0..1000 {
-            let input = rng.random_range(-4.0..4.0);
-            let target = [func(input)];
-            train_step(
+            train_batch_parallel(
                 &mut updater,
                 &mut network,
                 |got, want| (got.mse(want), got.mse_input_grads(want)),
-                [input],
-                target,
+                &mut || {
+                    let input = rng.random_range(-4.0..4.0);
+                    let target = [func(input)];
+                    ([input], target)
+                },
+                50,
             );
         }
 
