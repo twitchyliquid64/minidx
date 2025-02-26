@@ -29,7 +29,7 @@ impl<E: Dtype, const I: usize> crate::BaseModule for Bias1d<E, I> {}
 impl<E: Dtype, const I: usize> crate::Module<[E; I]> for Bias1d<E, I> {
     type Output = [E; I];
 
-    fn forward(&mut self, x: &[E; I]) -> Result<Self::Output, crate::Error> {
+    fn forward(&self, x: &[E; I]) -> Result<Self::Output, crate::Error> {
         Ok(Bias1d::forward(self, x))
     }
 }
@@ -37,11 +37,7 @@ impl<E: Dtype, const I: usize> crate::Module<[E; I]> for Bias1d<E, I> {
 impl<E: Dtype, const I: usize> crate::RevModule<[E; I]> for Bias1d<E, I> {
     type SelfGrads = [E; I];
 
-    fn reverse(
-        &mut self,
-        _inputs: &[E; I],
-        grads_wrt_output: &[E; I],
-    ) -> ([E; I], Self::SelfGrads) {
+    fn reverse(&self, _inputs: &[E; I], grads_wrt_output: &[E; I]) -> ([E; I], Self::SelfGrads) {
         (grads_wrt_output.clone(), grads_wrt_output.clone())
     }
 

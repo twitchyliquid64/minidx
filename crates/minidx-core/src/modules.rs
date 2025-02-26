@@ -6,7 +6,7 @@ pub trait Module<X> {
     /// The type that this unit produces given `Input`.
     type Output;
 
-    fn forward(&mut self, x: &X) -> Result<Self::Output, Error>;
+    fn forward(&self, x: &X) -> Result<Self::Output, Error>;
 }
 
 /// A unit of computation which can do backpropagation without knowledge of any
@@ -20,7 +20,7 @@ pub trait RevModule<X>: Module<X> {
     /// Returns the gradients with respect to the input, and the
     /// gradients with respect to any internal parameters.
     fn reverse(
-        &mut self,
+        &self,
         inputs: &X,
         grads_wrt_output: &<Self as Module<X>>::Output,
     ) -> (X, Self::SelfGrads);
@@ -47,15 +47,14 @@ pub trait TracedModule<X>: Module<X> {
 
     /// Same as [Module::forward], except intermediate computations that are needed
     /// for backprop are returned.
-    fn traced_forward(&mut self, x: X)
-        -> Result<(<Self as Module<X>>::Output, Self::Trace), Error>;
+    fn traced_forward(&self, x: X) -> Result<(<Self as Module<X>>::Output, Self::Trace), Error>;
 }
 
 impl<Input, M: Module<Input> + BaseModule> TracedModule<Input> for M {
     type Trace = Input;
 
     fn traced_forward(
-        &mut self,
+        &self,
         x: Input,
     ) -> Result<(<Self as crate::Module<Input>>::Output, Self::Trace), Error> {
         Ok((Module::forward(self, &x)?, (x)))
@@ -71,7 +70,7 @@ pub trait BackpropModule<X>: TracedModule<X> {
     type SelfGrads;
 
     fn backprop(
-        &mut self,
+        &self,
         trace: &<Self as TracedModule<X>>::Trace,
         grads_wrt_output: <Self as Module<X>>::Output,
     ) -> (X, Self::SelfGrads);
@@ -130,7 +129,7 @@ impl<Input, M: TracedModule<Input, Trace = Input> + RevModule<Input> + BaseModul
     type SelfGrads = <M as RevModule<Input>>::SelfGrads;
 
     fn backprop(
-        &mut self,
+        &self,
         trace: &<M as TracedModule<Input>>::Trace,
         grads_wrt_output: <M as Module<Input>>::Output,
     ) -> (Input, Self::SelfGrads) {
@@ -168,7 +167,7 @@ macro_rules! fwd_tuple_impls {
             type Output = $last ::Output;
 
             /// Calls forward sequentially on each module in the tuple.
-            fn forward(&mut self, x: &Input) -> Result<Self::Output, Error> {
+            fn forward(&self, x: &Input) -> Result<Self::Output, Error> {
                 let x = self.0.forward(x)?;
                 $(let x = self.$idx.forward(&x)?;)*
                 Ok(x)
@@ -184,7 +183,7 @@ macro_rules! fwd_tuple_impls {
             type Trace = ($($name::Trace,)+);
 
             fn traced_forward(
-                &mut self,
+                &self,
                 x: Input,
             ) -> Result<(<Self as Module<Input>>::Output, Self::Trace), Error> {
                 let (x, m1t) = self.0.traced_forward(x)?;
@@ -228,7 +227,7 @@ macro_rules! backwd_tuple_impls {
             );
 
             fn backprop(
-                &mut self,
+                &self,
                 trace: &<Self as TracedModule<Input>>::Trace,
                 next_grads: <Self as Module<Input>>::Output,
             ) -> (Input, Self::SelfGrads) {

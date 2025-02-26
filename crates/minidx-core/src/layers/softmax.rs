@@ -58,7 +58,7 @@ impl crate::BaseModule for Softmax {}
 impl<E: Float, const I: usize> crate::Module<[E; I]> for Softmax {
     type Output = [E; I];
 
-    fn forward(&mut self, x: &[E; I]) -> Result<Self::Output, crate::Error> {
+    fn forward(&self, x: &[E; I]) -> Result<Self::Output, crate::Error> {
         Ok(Softmax::forward(self, x))
     }
 }
@@ -66,7 +66,7 @@ impl<E: Float, const I: usize> crate::Module<[E; I]> for Softmax {
 impl<E: Float, const I: usize> crate::RevModule<[E; I]> for Softmax {
     type SelfGrads = ();
 
-    fn reverse(&mut self, inputs: &[E; I], grads_wrt_output: &[E; I]) -> ([E; I], Self::SelfGrads) {
+    fn reverse(&self, inputs: &[E; I], grads_wrt_output: &[E; I]) -> ([E; I], Self::SelfGrads) {
         (self.backprop(inputs, grads_wrt_output), ())
     }
 

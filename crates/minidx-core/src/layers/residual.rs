@@ -12,7 +12,7 @@ impl<E: Dtype, const I: usize, M: Default + crate::Module<[E; I], Output = [E; I
 {
     type Output = M::Output;
 
-    fn forward(&mut self, x: &[E; I]) -> Result<Self::Output, crate::Error> {
+    fn forward(&self, x: &[E; I]) -> Result<Self::Output, crate::Error> {
         let mut out = self.module.forward(x)?;
         out.iter_mut().zip(x).for_each(|(o, &x)| *o += x);
         Ok(out)
@@ -28,7 +28,7 @@ impl<
     type Trace = M::Trace;
 
     fn traced_forward(
-        &mut self,
+        &self,
         x: [E; I],
     ) -> Result<(<Self as crate::Module<[E; I]>>::Output, Self::Trace), crate::Error> {
         let (mut out, trace) = self.module.traced_forward(x)?;
@@ -49,7 +49,7 @@ impl<
     type SelfGrads = M::SelfGrads;
 
     fn backprop(
-        &mut self,
+        &self,
         trace: &<M as crate::TracedModule<[E; I]>>::Trace,
         grads_wrt_output: <M as crate::Module<[E; I]>>::Output,
     ) -> ([E; I], Self::SelfGrads) {

@@ -85,7 +85,7 @@ impl<E: Float> crate::BaseModule for Activation<E> {}
 impl<E: Float, const I: usize> crate::Module<[E; I]> for Activation<E> {
     type Output = [E; I];
 
-    fn forward(&mut self, x: &[E; I]) -> Result<Self::Output, crate::Error> {
+    fn forward(&self, x: &[E; I]) -> Result<Self::Output, crate::Error> {
         Ok(Activation::forward(self, x))
     }
 }
@@ -93,7 +93,7 @@ impl<E: Float, const I: usize> crate::Module<[E; I]> for Activation<E> {
 impl<E: Float, const I: usize> crate::RevModule<[E; I]> for Activation<E> {
     type SelfGrads = ();
 
-    fn reverse(&mut self, inputs: &[E; I], grads_wrt_output: &[E; I]) -> ([E; I], Self::SelfGrads) {
+    fn reverse(&self, inputs: &[E; I], grads_wrt_output: &[E; I]) -> ([E; I], Self::SelfGrads) {
         let mut grads = self.backward(inputs);
         grads
             .iter_mut()

@@ -57,7 +57,7 @@ impl<
 {
     type Output = [E; O];
 
-    fn forward(&mut self, x: &[E; I]) -> Result<Self::Output, crate::Error> {
+    fn forward(&self, x: &[E; I]) -> Result<Self::Output, crate::Error> {
         let gates = self.gate_bias.forward(&self.gate_connections.forward(x)?)?;
         let mut gates = self.activation.forward(&gates)?;
         let sigs = self.sig_bias.forward(&self.sig_connections.forward(x)?)?;
@@ -97,7 +97,7 @@ impl<
     );
 
     fn traced_forward(
-        &mut self,
+        &self,
         x: [E; I],
     ) -> Result<(<Self as crate::Module<[E; I]>>::Output, Self::Trace), crate::Error> {
         let (gc_out, gc_trace) = self.gate_connections.traced_forward(x.clone())?;
@@ -150,7 +150,7 @@ impl<
     );
 
     fn backprop(
-        &mut self,
+        &self,
         trace: &<Self as crate::TracedModule<[E; I]>>::Trace,
         grads_wrt_output: <Self as crate::Module<[E; I]>>::Output,
     ) -> ([E; I], Self::SelfGrads) {

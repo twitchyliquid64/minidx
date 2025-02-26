@@ -54,7 +54,7 @@ impl<E: Float, const I: usize> crate::BaseModule for Swish<E, I> {}
 impl<E: Float, const I: usize> crate::Module<[E; I]> for Swish<E, I> {
     type Output = [E; I];
 
-    fn forward(&mut self, x: &[E; I]) -> Result<Self::Output, crate::Error> {
+    fn forward(&self, x: &[E; I]) -> Result<Self::Output, crate::Error> {
         Ok(Swish::forward(self, x))
     }
 }
@@ -62,7 +62,7 @@ impl<E: Float, const I: usize> crate::Module<[E; I]> for Swish<E, I> {
 impl<E: Float, const I: usize> crate::RevModule<[E; I]> for Swish<E, I> {
     type SelfGrads = [E; I];
 
-    fn reverse(&mut self, inputs: &[E; I], grads_wrt_output: &[E; I]) -> ([E; I], Self::SelfGrads) {
+    fn reverse(&self, inputs: &[E; I], grads_wrt_output: &[E; I]) -> ([E; I], Self::SelfGrads) {
         let mut output_grads = self.gradients_wrt_input(inputs);
         output_grads
             .iter_mut()

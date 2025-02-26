@@ -19,7 +19,7 @@ impl<
         C: Conv1dKernel<E, Const<I>, Const<O>>,
     > Conv1d<E, I, O, C>
 {
-    fn forward(&mut self, x: &[E; I]) -> [E; O] {
+    fn forward(&self, x: &[E; I]) -> [E; O] {
         let mut output = [E::default(); O];
         output.iter_mut().enumerate().for_each(|(i, o)| {
             *o = x[i..]
@@ -100,7 +100,7 @@ impl<
 {
     type Output = [E; O];
 
-    fn forward(&mut self, x: &[E; I]) -> Result<Self::Output, crate::Error> {
+    fn forward(&self, x: &[E; I]) -> Result<Self::Output, crate::Error> {
         Ok(Conv1d::forward(self, x))
     }
 }
@@ -114,7 +114,7 @@ impl<
 {
     type SelfGrads = C::Weights;
 
-    fn reverse(&mut self, inputs: &[E; I], grads_wrt_output: &[E; O]) -> ([E; I], Self::SelfGrads) {
+    fn reverse(&self, inputs: &[E; I], grads_wrt_output: &[E; O]) -> ([E; I], Self::SelfGrads) {
         (
             Conv1d::gradients_wrt_input(self, grads_wrt_output),
             Conv1d::gradients_wrt_weights(self, inputs, grads_wrt_output),

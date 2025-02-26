@@ -84,7 +84,7 @@ impl<E: Dtype + MatMulImpl, const I: usize, const O: usize> crate::Module<[E; I]
 {
     type Output = [E; O];
 
-    fn forward(&mut self, x: &[E; I]) -> Result<Self::Output, crate::Error> {
+    fn forward(&self, x: &[E; I]) -> Result<Self::Output, crate::Error> {
         Ok(Dense::forward(self, &x))
     }
 }
@@ -94,7 +94,7 @@ impl<E: Dtype + MatMulImpl, const I: usize, const O: usize> crate::RevModule<[E;
 {
     type SelfGrads = [[E; I]; O];
 
-    fn reverse(&mut self, inputs: &[E; I], grads_wrt_output: &[E; O]) -> ([E; I], Self::SelfGrads) {
+    fn reverse(&self, inputs: &[E; I], grads_wrt_output: &[E; O]) -> ([E; I], Self::SelfGrads) {
         (
             Dense::gradients_wrt_input(self, grads_wrt_output),
             Dense::gradients_wrt_weights(self, inputs, grads_wrt_output),

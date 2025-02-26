@@ -21,7 +21,7 @@ raqote.workspace = true
 rust-fontconfig.workspace = true
 fontdue.workspace = true
 
-plotters = { version = "^0.3", default-features = false, features = ["bitmap_backend", "all_series"] }
+plotters = { version = "^0.3", default-features = false, features = ["bitmap_backend", "all_series", "ab_glyph"] }
 
 [target.'cfg(not(target_os = "windows"))'.dependencies]
 command-fds = "0.3"

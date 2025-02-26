@@ -61,38 +61,42 @@ pub fn train_step<
 pub fn train_batch<
     Input,
     LV: Float,
-    Network: BackpropModule<Input>,
+    Network: BackpropModule<Input> + Sized + Sync + Send,
     GA: GradAdjuster<Network::SelfGrads> + GradApplyer,
     S: FnMut() -> (Input, Network::Output),
 >(
     ga: &mut GA,
     network: &mut Network,
-    loss: impl Fn(&Network::Output, &Network::Output) -> (LV, Network::Output),
+    loss: impl Fn(&Network::Output, &Network::Output) -> (LV, Network::Output) + Sync,
     source: &mut S,
     batch_size: usize,
 ) -> f32
 where
     // Network::Output: std::fmt::Debug,
     LV: std::ops::Mul<f32, Output = f32>,
-    <Network as modules::BackpropModule<Input>>::SelfGrads: Gradients,
+    (Input, Network::Output): Sized + Sync + Send,
+    <Network as modules::BackpropModule<Input>>::SelfGrads: Gradients + Sync + Send,
 {
-    let mut grads: Option<(Network::SelfGrads, LV)> = None;
+    use rayon::{iter::repeatn, prelude::*};
 
-    let (mut grads, lv) = (0..batch_size).into_iter().fold(
-        (Network::SelfGrads::empty(), LV::default()),
-        |(mut accumulated_grads, mut accumulated_lv), _i| {
-            let (input, output) = source();
-
+    let batch: Vec<_> = (0..batch_size).map(|_| source()).collect();
+    let (mut grads, lv) = batch
+        .into_par_iter()
+        .map(|sample| {
+            let (input, output) = sample;
             let (out, trace) = network.traced_forward(input).unwrap();
             let (lv, loss_grads) = loss(&out, &output);
 
             let (_, gradient_updates) = network.backprop(&trace, loss_grads);
-            accumulated_grads.add(gradient_updates);
-            accumulated_lv += lv;
 
-            (accumulated_grads, accumulated_lv)
-        },
-    );
+            (gradient_updates, lv)
+        })
+        .reduce_with(|(mut l_grads, mut l_lv), (r_grads, r_lv)| {
+            l_grads.add(r_grads);
+            l_lv += r_lv;
+            (l_grads, l_lv)
+        })
+        .unwrap();
 
     grads.scale((batch_size as f32).recip());
     let lv = lv.to_f32().unwrap() * (batch_size as f32).recip();
