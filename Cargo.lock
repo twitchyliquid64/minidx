@@ -531,7 +531,7 @@ dependencies = [
 
 [[package]]
 name = "minidx"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "minidx-core",
  "minidx-vis",
@@ -543,7 +543,7 @@ dependencies = [
 
 [[package]]
 name = "minidx-core"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "gemm",
  "num-traits",
@@ -554,7 +554,7 @@ dependencies = [
 
 [[package]]
 name = "minidx-vis"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "command-fds",
  "fontdue",

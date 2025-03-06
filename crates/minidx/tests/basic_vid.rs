@@ -39,7 +39,7 @@ fn vis_as_video() {
     use minidx_core::loss::DiffLoss;
     let mut updater = nn.new_rmsprop_with_momentum(
         TrainParams::with_lr(2.0e-3)
-            .and_l2(1.0e-6)
+            .and_l2(2.0e-6)
             .and_soft_start(500),
         0.8,
         0.95,

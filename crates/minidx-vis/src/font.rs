@@ -3,6 +3,24 @@ use fontdue::Font;
 
 use raqote::{DrawOptions, DrawTarget, SolidSource};
 
+use std::sync::OnceLock;
+
+pub(crate) fn ensure_plotters_font_registered() {
+    static ARRAY: OnceLock<()> = OnceLock::new();
+    ARRAY.get_or_init(|| {
+        if let Some((font_bytes, _)) = VisFont::default_font_bytes() {
+            plotters::style::register_font(
+                "sans-serif",
+                plotters::prelude::FontStyle::Normal,
+                font_bytes.leak(),
+            )
+            .ok();
+        }
+
+        ()
+    });
+}
+
 /// A loaded font for use in rastering text during visualization.
 pub struct VisFont {
     layout: Layout<()>,
@@ -28,7 +46,7 @@ impl std::fmt::Debug for VisFont {
 }
 
 impl VisFont {
-    pub fn default_font() -> Option<Self> {
+    fn default_font_bytes() -> Option<(Vec<u8>, usize)> {
         use rust_fontconfig::{FcFontCache, FcPattern};
         let cache = FcFontCache::build();
         // for font in cache.list() {
@@ -71,23 +89,26 @@ impl VisFont {
                 .query(c)
                 .map(|p| (p.font_index, std::fs::read(p.path.clone()).unwrap()));
             if let Some((idx, font_bytes)) = result {
-                return Some(Self {
-                    layout: Layout::<()>::new(fontdue::layout::CoordinateSystem::PositiveYDown),
-                    font: std::sync::Arc::new(
-                        Font::from_bytes(
-                            font_bytes,
-                            fontdue::FontSettings {
-                                collection_index: idx as u32,
-                                ..Default::default()
-                            },
-                        )
-                        .unwrap(),
-                    ),
-                });
+                return Some((font_bytes, idx));
             }
         }
-
         None
+    }
+
+    pub fn default_font() -> Option<Self> {
+        VisFont::default_font_bytes().map(|(font_bytes, idx)| Self {
+            layout: Layout::<()>::new(fontdue::layout::CoordinateSystem::PositiveYDown),
+            font: std::sync::Arc::new(
+                Font::from_bytes(
+                    font_bytes,
+                    fontdue::FontSettings {
+                        collection_index: idx as u32,
+                        ..Default::default()
+                    },
+                )
+                .unwrap(),
+            ),
+        })
     }
 
     pub fn layout_str(

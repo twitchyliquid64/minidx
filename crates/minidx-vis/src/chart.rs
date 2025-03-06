@@ -38,6 +38,8 @@ impl LineChart {
         margin_top: u32,
         margin_bottom: u32,
     ) {
+        crate::font::ensure_plotters_font_registered();
+
         let size = (dt.width() as u32, dt.height() as u32);
         let mut chart_area =
             BitMapBackend::<BGRXPixel>::with_buffer_and_format(dt.get_data_u8_mut(), size)
@@ -50,10 +52,20 @@ impl LineChart {
                 .margin_right(margin_right)
                 .margin_top(margin_top)
                 .margin_bottom(margin_bottom)
+                .x_label_area_size(35)
+                .y_label_area_size(45)
+                .caption("Loss", ("sans-serif", 40))
                 .build_cartesian_2d(self.min.0..self.max.0, (self.min.1..self.max.1).log_scale())
                 .unwrap();
 
-            chart.configure_mesh().draw().unwrap();
+            chart
+                .configure_mesh()
+                .x_labels(8)
+                .y_labels(5)
+                .x_label_formatter(&|v| format!("{}", v))
+                .y_label_formatter(&|v| format!("{:.3}", v))
+                .draw()
+                .unwrap();
 
             chart
                 .draw_series(LineSeries::new(self.series(), &RED))
@@ -64,10 +76,20 @@ impl LineChart {
                 .margin_right(margin_right)
                 .margin_top(margin_top)
                 .margin_bottom(margin_bottom)
+                .x_label_area_size(35)
+                .y_label_area_size(45)
+                .caption("Loss", ("sans-serif", 40))
                 .build_cartesian_2d(self.min.0..self.max.0, self.min.1..self.max.1)
                 .unwrap();
 
-            chart.configure_mesh().draw().unwrap();
+            chart
+                .configure_mesh()
+                .x_labels(8)
+                .y_labels(5)
+                .x_label_formatter(&|v| format!("{}", v))
+                .y_label_formatter(&|v| format!("{:.3}", v))
+                .draw()
+                .unwrap();
 
             chart
                 .draw_series(LineSeries::new(self.series(), &RED))
