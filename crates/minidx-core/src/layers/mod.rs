@@ -18,3 +18,6 @@ pub use gate::GLU;
 
 mod conv1d;
 pub use conv1d::{Conv1d, Conv1dKernel};
+
+mod lr_modifier;
+pub use lr_modifier::LR;

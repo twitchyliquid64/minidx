@@ -35,7 +35,7 @@ pub struct TrainParams {
 impl Default for TrainParams {
     fn default() -> Self {
         Self {
-            lr: 1.0e-8,
+            lr: 1.0e-6,
             l1_reg: 0.0,
             l2_reg: 0.0,
             lr_decay: None,

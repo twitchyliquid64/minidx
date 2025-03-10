@@ -335,7 +335,12 @@ mod tests {
                 layers::Activation::LeakyRelu(0.5),
             ),
             (
-                layers::Dense::<f32, 5, 2>::default(),
+                // Also double the learning rate of this layer, not for
+                // any real reason
+                layers::LR::<f32, 5, layers::Dense<f32, 5, 2>> {
+                    update_multiplier: 2.0,
+                    ..Default::default()
+                },
                 layers::Bias1d::<f32, 2>::default(),
             ),
             layers::Activation::Sigmoid,
