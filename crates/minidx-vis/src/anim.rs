@@ -107,7 +107,7 @@ impl<N: VisualizableNetwork<DrawTarget> + std::marker::Send + 'static> Recorder<
 
 /// Renders a video file by calling the given function to generate every frame.
 ///
-/// The callback function should write the frame in rgb (3x8 bits a pixel) format,
+/// The callback function should write the frame in bgra (4x8 bits a pixel) format,
 /// and return true if the callback should be called again to generate the next
 /// frame.
 ///

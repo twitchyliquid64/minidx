@@ -1,3 +1,4 @@
+use crate::misc::Decay;
 use crate::{Dtype, Float, Gradients, Unit};
 use num_traits::FromPrimitive;
 
@@ -20,28 +21,26 @@ pub trait GradApplyer {
 /// Describes the basic set of parameters used in training. Implements
 /// optimizer traits, so it can be passed into training methods.
 pub struct TrainParams {
-    pub lr: f32,
+    pub lr: Decay,
     pub l1_reg: f32,
     pub l2_reg: f32,
 
-    pub lr_decay: Option<f32>,
     pub soft_start_epochs: Option<usize>,
 
     pub grad_clip: Option<f32>,
 
-    epoch: usize,
+    step: usize,
 }
 
 impl Default for TrainParams {
     fn default() -> Self {
         Self {
-            lr: 1.0e-6,
+            lr: Decay::None(1.0e-6),
             l1_reg: 0.0,
             l2_reg: 0.0,
-            lr_decay: None,
             soft_start_epochs: None,
             grad_clip: None,
-            epoch: 0,
+            step: 0,
         }
     }
 }
@@ -50,7 +49,7 @@ impl TrainParams {
     /// Constructs an object with the given training rate.
     pub fn with_lr(lr: f32) -> Self {
         Self {
-            lr,
+            lr: Decay::None(lr),
             ..Default::default()
         }
     }
@@ -75,7 +74,22 @@ impl TrainParams {
     ///
     /// This method can be chained in a builder-pattern kind of way.
     pub fn and_lr_decay(mut self, lr_decay: f32) -> Self {
-        self.lr_decay = Some(lr_decay);
+        self.lr = Decay::Linear {
+            start: self.lr.start_value(),
+            decay: lr_decay,
+        };
+        self
+    }
+
+    /// Sets the learning rate (cosine) decay, keeping all other parameters unaffected.
+    ///
+    /// This method can be chained in a builder-pattern kind of way.
+    pub fn and_lr_cosine_decay(mut self, final_lr: f32, over_steps: usize) -> Self {
+        self.lr = Decay::Cosine {
+            start: self.lr.start_value(),
+            end: final_lr,
+            num_steps: over_steps,
+        };
         self
     }
 
@@ -95,15 +109,16 @@ impl TrainParams {
     }
 
     fn current_lr(&self) -> f32 {
+        let lr = self.lr.at_timestep(self.step);
         match self.soft_start_epochs {
             Some(soft_start_epochs) => {
-                if self.epoch < soft_start_epochs {
-                    self.lr / soft_start_epochs as f32 * (1 + self.epoch) as f32
+                if self.step < soft_start_epochs {
+                    lr / soft_start_epochs as f32 * (1 + self.step) as f32
                 } else {
-                    self.lr
+                    lr
                 }
             }
-            None => self.lr,
+            None => lr,
         }
     }
 
@@ -166,12 +181,7 @@ impl GradApplyer for TrainParams {
                 *w += u - reg_penalty;
             });
 
-        if let Some(lr_decay) = self.lr_decay {
-            if self.lr > lr_decay {
-                self.lr -= lr_decay;
-            }
-        }
-        self.epoch += 1;
+        self.step += 1;
         Ok(())
     }
 }
