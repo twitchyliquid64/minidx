@@ -1,8 +1,9 @@
 //! Descriptors of different neural layers which can be composed into a network.
 
+use crate::Buildable;
 use minidx_core::layers::{
     Activation, Bias1d, Conv1d as Conv1dL, Dense as DenseL, Softmax as SoftmaxL, Swish as SwishL,
-    GLU as GLUL,
+    GLU as GLUL, LR,
 };
 use minidx_core::matmul::MatMulImpl;
 use minidx_core::{Const, Dtype};
@@ -11,7 +12,7 @@ use minidx_core::{Const, Dtype};
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Dense<const I: usize, const O: usize> {}
 
-impl<const I: usize, const O: usize, E: Dtype + MatMulImpl> crate::Buildable<E> for Dense<I, O> {
+impl<const I: usize, const O: usize, E: Dtype + MatMulImpl> Buildable<E> for Dense<I, O> {
     type Built = DenseL<E, I, O>;
     fn try_build(&self) -> Result<Self::Built, crate::Error> {
         Ok(DenseL::default())
@@ -25,7 +26,7 @@ impl<const I: usize, const O: usize, E: Dtype + MatMulImpl> crate::Buildable<E> 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Linear<const I: usize, const O: usize> {}
 
-impl<const I: usize, const O: usize, E: Dtype + MatMulImpl> crate::Buildable<E> for Linear<I, O> {
+impl<const I: usize, const O: usize, E: Dtype + MatMulImpl> Buildable<E> for Linear<I, O> {
     type Built = (DenseL<E, I, O>, Bias1d<E, O>);
     fn try_build(&self) -> Result<Self::Built, crate::Error> {
         Ok((DenseL::default(), Bias1d::default()))
@@ -36,7 +37,7 @@ impl<const I: usize, const O: usize, E: Dtype + MatMulImpl> crate::Buildable<E> 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Relu;
 
-impl<E: Dtype + minidx_core::Float> crate::Buildable<E> for Relu {
+impl<E: Dtype + minidx_core::Float> Buildable<E> for Relu {
     type Built = Activation<E>;
     fn try_build(&self) -> Result<Self::Built, crate::Error> {
         Ok(Activation::<E>::Relu)
@@ -53,7 +54,7 @@ impl Default for LeakyRelu {
     }
 }
 
-impl<E: Dtype + minidx_core::Float> crate::Buildable<E> for LeakyRelu {
+impl<E: Dtype + minidx_core::Float> Buildable<E> for LeakyRelu {
     type Built = Activation<E>;
     fn try_build(&self) -> Result<Self::Built, crate::Error> {
         Ok(Activation::<E>::LeakyRelu(E::from_f32(self.0).unwrap()))
@@ -64,7 +65,7 @@ impl<E: Dtype + minidx_core::Float> crate::Buildable<E> for LeakyRelu {
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Sigmoid;
 
-impl<E: Dtype + minidx_core::Float> crate::Buildable<E> for Sigmoid {
+impl<E: Dtype + minidx_core::Float> Buildable<E> for Sigmoid {
     type Built = Activation<E>;
     fn try_build(&self) -> Result<Self::Built, crate::Error> {
         Ok(Activation::<E>::Sigmoid)
@@ -75,7 +76,7 @@ impl<E: Dtype + minidx_core::Float> crate::Buildable<E> for Sigmoid {
 #[derive(Clone, Copy, Debug, Default)]
 pub struct SiLU;
 
-impl<E: Dtype + minidx_core::Float> crate::Buildable<E> for SiLU {
+impl<E: Dtype + minidx_core::Float> Buildable<E> for SiLU {
     type Built = Activation<E>;
     fn try_build(&self) -> Result<Self::Built, crate::Error> {
         Ok(Activation::<E>::SiLU)
@@ -92,7 +93,7 @@ impl Default for Softmax {
     }
 }
 
-impl<E: Dtype + minidx_core::Float> crate::Buildable<E> for Softmax {
+impl<E: Dtype + minidx_core::Float> Buildable<E> for Softmax {
     type Built = SoftmaxL;
     fn try_build(&self) -> Result<Self::Built, crate::Error> {
         Ok(SoftmaxL(self.0))
@@ -103,7 +104,7 @@ impl<E: Dtype + minidx_core::Float> crate::Buildable<E> for Softmax {
 #[derive(Clone, Copy, Debug, Default)]
 pub struct GLU<const I: usize, const O: usize> {}
 
-impl<const I: usize, const O: usize, E: Dtype + minidx_core::Float + MatMulImpl> crate::Buildable<E>
+impl<const I: usize, const O: usize, E: Dtype + minidx_core::Float + MatMulImpl> Buildable<E>
     for GLU<I, O>
 {
     type Built = GLUL<E, I, O, Activation<E>>;
@@ -116,7 +117,7 @@ impl<const I: usize, const O: usize, E: Dtype + minidx_core::Float + MatMulImpl>
 #[derive(Clone, Copy, Debug, Default)]
 pub struct SwiGLU<const I: usize, const O: usize> {}
 
-impl<const I: usize, const O: usize, E: Dtype + minidx_core::Float + MatMulImpl> crate::Buildable<E>
+impl<const I: usize, const O: usize, E: Dtype + minidx_core::Float + MatMulImpl> Buildable<E>
     for SwiGLU<I, O>
 {
     type Built = GLUL<E, I, O, SwishL<E, O>>;
@@ -135,7 +136,7 @@ impl<const I: usize, const O: usize> Default for GLULeakyRelu<I, O> {
     }
 }
 
-impl<const I: usize, const O: usize, E: Dtype + minidx_core::Float + MatMulImpl> crate::Buildable<E>
+impl<const I: usize, const O: usize, E: Dtype + minidx_core::Float + MatMulImpl> Buildable<E>
     for GLULeakyRelu<I, O>
 {
     type Built = GLUL<E, I, O, Activation<E>>;
@@ -153,7 +154,7 @@ impl<
         const O: usize,
         const F: usize,
         E: Dtype + minidx_core::Float + MatMulImpl,
-    > crate::Buildable<E> for Conv1d<I, O, F>
+    > Buildable<E> for Conv1d<I, O, F>
 where
     Const<F>: minidx_core::layers::Conv1dKernel<E, Const<I>, Const<O>>,
 {
@@ -167,10 +168,35 @@ where
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Swish<const I: usize> {}
 
-impl<const I: usize, E: Dtype + minidx_core::Float> crate::Buildable<E> for Swish<I> {
+impl<const I: usize, E: Dtype + minidx_core::Float> Buildable<E> for Swish<I> {
     type Built = SwishL<E, I>;
     fn try_build(&self) -> Result<Self::Built, crate::Error> {
         Ok(SwishL::default())
+    }
+}
+
+/// Learning Rate Divisor - wrapper to reduce local learning rate.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct LRDiv<E: Dtype, const I: usize, const D: usize, B: Buildable<E>> {
+    module: B,
+    pd: std::marker::PhantomData<E>,
+}
+
+impl<
+        E: Dtype,
+        const I: usize,
+        const D: usize,
+        B: crate::Buildable<E, Built = M>,
+        M: Clone + Default + std::fmt::Debug + minidx_core::Module<[E; I]>,
+    > Buildable<E> for LRDiv<E, I, D, B>
+{
+    type Built = LR<E, I, M>;
+    fn try_build(&self) -> Result<Self::Built, crate::Error> {
+        Ok(LR {
+            module: self.module.try_build()?,
+            update_multiplier: (D as f32).recip(),
+            ..Default::default()
+        })
     }
 }
 

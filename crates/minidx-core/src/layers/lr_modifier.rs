@@ -79,3 +79,13 @@ impl<E: Dtype, const I: usize, M: Default + crate::Module<[E; I]> + crate::Reset
         self.module.rand_params(rng, scale)
     }
 }
+
+impl<E: Dtype, const I: usize, M: Default + crate::Module<[E; I]> + crate::VisualizableUnit>
+    crate::VisualizableUnit for LR<E, I, M>
+{
+    const KIND: &'static str = M::KIND;
+    type Params = M::Params;
+    fn params(&self) -> &Self::Params {
+        self.module.params()
+    }
+}

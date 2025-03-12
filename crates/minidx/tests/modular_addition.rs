@@ -9,8 +9,11 @@ fn integration_modular_addition10() {
     use minidx::problem::ModularAddition10;
 
     let network = (
-        (layers::Linear::<20, 35> {}, layers::Sigmoid),
-        layers::Linear::<35, 10> {},
+        (
+            layers::LRDiv::<f32, 20, 2, layers::Linear<20, 35>>::default(),
+            layers::Sigmoid,
+        ),
+        layers::Linear::<35, 10>::default(),
         layers::Softmax::default(),
     );
 

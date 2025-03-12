@@ -15,6 +15,14 @@ impl<E: Float> LayerMarker for minidx_core::layers::Activation<E> {}
 impl<E: Float, const I: usize> LayerMarker for minidx_core::layers::Swish<E, I> {}
 impl LayerMarker for minidx_core::layers::Softmax {}
 
+impl<
+        E: Dtype,
+        const I: usize,
+        M: Default + minidx_core::Module<[E; I]> + minidx_core::VisualizableUnit,
+    > LayerMarker for minidx_core::layers::LR<E, I, M>
+{
+}
+
 /// Some composition of parameters which can be visualized.
 pub trait VisualizableNetwork<DT> {
     type Params: std::fmt::Debug + Sized;
