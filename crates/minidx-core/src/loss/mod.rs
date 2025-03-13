@@ -8,9 +8,14 @@ pub trait DiffLoss: Clone {
     fn mse(&self, truth: &Self) -> Self::Output;
     /// Computes the gradients of each input with regards to the [DiffLoss::mse].
     fn mse_input_grads(&self, truth: &Self) -> Self;
+
+    /// Computes the Huber error.
+    fn huber(&self, beta: f32, truth: &Self) -> Self::Output;
+    /// Computes the gradients of each input with regards to the [DiffLoss::huber].
+    fn huber_input_grads(&self, beta: f32, truth: &Self) -> Self;
 }
 
-impl<E: Dtype, const I: usize> DiffLoss for [E; I] {
+impl<E: Float, const I: usize> DiffLoss for [E; I] {
     type Output = E;
 
     /// Computes the Mean-squared error.
@@ -37,6 +42,58 @@ impl<E: Dtype, const I: usize> DiffLoss for [E; I] {
             .zip(self)
             .zip(truth)
             .for_each(|((out, test), truth)| *out = (E::ONE + E::ONE) * (*test - *truth) / c);
+
+        out
+    }
+
+    /// Computes the Huber error.
+    fn huber(&self, beta: f32, truth: &Self) -> E {
+        if I == 0 {
+            return E::default();
+        }
+        use num_traits::FromPrimitive;
+        let half = E::from_f32(0.5).unwrap();
+        let beta = E::from_f32(beta).unwrap();
+
+        self.iter()
+            .zip(truth)
+            .fold(E::default(), |a, (test, truth)| {
+                let err = *test - *truth;
+                let err_abs = err.abs();
+
+                let huber_err = if err_abs < beta {
+                    half * err * err
+                } else {
+                    beta * (err_abs - half * beta * beta)
+                };
+
+                a + huber_err
+            })
+            / E::from_usize(I).unwrap()
+    }
+
+    /// Computes the gradients of each input with regards to the [DiffLoss::huber].
+    fn huber_input_grads(&self, beta: f32, truth: &Self) -> [E; I] {
+        use num_traits::FromPrimitive;
+        let beta = E::from_f32(beta).unwrap();
+        let c = E::from_usize(I).unwrap();
+        let mut out = [E::default(); I];
+
+        out.iter_mut()
+            .zip(self)
+            .zip(truth)
+            .for_each(|((out, test), truth)| {
+                let err = *test - *truth;
+                let err_abs = err.abs();
+
+                *out = if err_abs < beta {
+                    err / c
+                } else {
+                    let signum = if err > E::default() { E::ONE } else { -E::ONE };
+
+                    signum * beta / c
+                };
+            });
 
         out
     }
@@ -185,5 +242,18 @@ mod tests {
             cosine_similarity(&[1.0f32, 3.0f32], &[1.0f32, 3.0f32]),
             Some(1.0f32)
         );
+    }
+
+    #[test]
+    fn test_huber() {
+        assert_eq!([0.0f32; 0].huber(1.0, &[]), 0.0f32);
+        assert_eq!([3.5].huber(1.0, &[3.5]), 0.0f32);
+
+        assert_eq!([2.0].huber(1.0, &[5.0]), 2.5);
+        assert_eq!([2.0].huber_input_grads(1.0, &[5.0]), [-1.0]);
+
+        assert_eq!([3.0].huber(1.0, &[3.5]), 0.125);
+        assert_eq!([3.0].huber_input_grads(1.0, &[3.5]), [-0.5]);
+        assert_eq!([3.5].huber_input_grads(1.0, &[3.0]), [0.5]);
     }
 }

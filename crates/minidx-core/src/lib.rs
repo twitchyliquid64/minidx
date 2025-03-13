@@ -266,13 +266,13 @@ mod tests {
         network.rand_params(&mut rng, 0.1).unwrap();
 
         let mut updater = network.new_rmsprop_with_momentum(TrainParams::with_lr(1.0e-4), 0.6, 0.5);
-        for _i in 0..50 {
+        for _i in 0..250 {
             let input = rng.random_range(-20.0..20.0);
             let target = [-input, input];
             train_step(
                 &mut updater,
                 &mut network,
-                |got, want| (got.mse(want), got.mse_input_grads(want)),
+                |got, want| (got.huber(1.6, want), got.huber_input_grads(1.6, want)),
                 [input],
                 target,
             );
