@@ -40,6 +40,25 @@ impl<E: Dtype + Float + MatMulImpl, const I: usize, const O: usize> GLU<E, I, O,
     }
 }
 
+impl<
+        E: Dtype + Float + MatMulImpl,
+        const I: usize,
+        const O: usize,
+        A: crate::Module<[E; O], Output = [E; O]> + Default,
+    > GLU<E, I, O, A>
+{
+
+    #[doc(hidden)]
+    pub fn connection_params(&self) -> (&[[E; I]; O], &[E; O], &[[E; I]; O], &[E; O]) {
+        (
+            &self.gate_connections.weights,
+            &self.gate_bias.bias,
+            &self.sig_connections.weights,
+            &self.sig_bias.bias,
+        )
+    }
+}
+
 impl<E: Dtype + Float + MatMulImpl, const I: usize, const O: usize>
     GLU<E, I, O, super::Swish<E, O>>
 {

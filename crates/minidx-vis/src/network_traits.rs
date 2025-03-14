@@ -43,6 +43,55 @@ where
     }
 }
 
+impl<
+        E: Dtype + Float + minidx_core::matmul::MatMulImpl,
+        const I: usize,
+        const O: usize,
+        A: minidx_core::Module<[E; O], Output = [E; O]> + Default,
+    > VisualizableNetwork<DrawTarget> for minidx_core::layers::GLU<E, I, O, A>
+where
+    DrawTarget: PaintParams<[[E; O]; 1]> + PaintParams<[[E; I]; O]>,
+{
+    type Params = (); // Not technically correct but it'll do
+
+    fn visualize(&self, dt: &mut DrawTarget, opts: &mut ParamVisOpts) -> (f32, f32) {
+        let (gc, gb, sc, sb) = self.connection_params();
+
+        let gc_box = <raqote::DrawTarget as PaintParams<[[E; I]; O]>>::layout_bounds(dt, &opts);
+        dt.paint_params(gc, opts);
+        let gb_box = <raqote::DrawTarget as PaintParams<[[E; O]; 1]>>::layout_bounds(
+            dt,
+            opts.update_cursor((0.0, gc_box.1)),
+        );
+        dt.paint_params(
+            unsafe {
+                // SAFETY: An array of N is exactly the same as a unary array of the array of N
+                std::mem::transmute::<&[E; O], &[[E; O]; 1]>(gb)
+            },
+            opts,
+        );
+
+        let sc_box = <raqote::DrawTarget as PaintParams<[[E; I]; O]>>::layout_bounds(
+            dt,
+            opts.update_cursor((0.0, gb_box.1)),
+        );
+        dt.paint_params(sc, opts);
+        let sb_box = <raqote::DrawTarget as PaintParams<[[E; O]; 1]>>::layout_bounds(
+            dt,
+            opts.update_cursor((0.0, sc_box.1)),
+        );
+        dt.paint_params(
+            unsafe {
+                // SAFETY: An array of N is exactly the same as a unary array of the array of N
+                std::mem::transmute::<&[E; O], &[[E; O]; 1]>(sb)
+            },
+            opts,
+        );
+
+        (0.0, sb_box.1)
+    }
+}
+
 macro_rules! tuple_impls {
     ([$($name:ident),+] [$($idx:tt),*], $last:ident, [$($rev_tail:ident),*]) => {
         impl<
