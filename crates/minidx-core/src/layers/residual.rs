@@ -69,6 +69,26 @@ impl<
     }
 }
 
+impl<E: Dtype, const I: usize, M: Default + crate::Module<[E; I]> + crate::LoadableModule>
+    crate::LoadableModule for Residual<E, I, M>
+{
+    fn save(
+        &self,
+        path: String,
+        dict: &mut std::collections::HashMap<String, Vec<f64>>,
+    ) -> Result<(), crate::LoadSaveError> {
+        self.module.save(path + ".inner", dict)
+    }
+
+    fn load(
+        &mut self,
+        path: String,
+        dict: &std::collections::HashMap<String, Vec<f64>>,
+    ) -> Result<(), crate::LoadSaveError> {
+        self.module.load(path + ".inner", dict)
+    }
+}
+
 impl<E: Dtype, const I: usize, M: Default + crate::Module<[E; I]> + crate::ResetParams>
     crate::ResetParams for Residual<E, I, M>
 {

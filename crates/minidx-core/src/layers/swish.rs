@@ -84,6 +84,46 @@ impl<E: Float, const I: usize> crate::RevModule<[E; I]> for Swish<E, I> {
     }
 }
 
+impl<E: Float, const I: usize> crate::LoadableModule for Swish<E, I> {
+    fn save(
+        &self,
+        path: String,
+        dict: &mut std::collections::HashMap<String, Vec<f64>>,
+    ) -> Result<(), crate::LoadSaveError> {
+        dict.insert(
+            path,
+            self.beta.iter().map(|f| f.to_f64().unwrap()).collect(),
+        );
+        Ok(())
+    }
+
+    fn load(
+        &mut self,
+        path: String,
+        dict: &std::collections::HashMap<String, Vec<f64>>,
+    ) -> Result<(), crate::LoadSaveError> {
+        let params = dict.get(&path).ok_or(crate::LoadSaveError {
+            path: path.clone(),
+            err: "Parameters missing".into(),
+        })?;
+        if params.len() != I {
+            return Err(crate::LoadSaveError {
+                path,
+                err: format!(
+                    "Parameters have wrong size: got {}, want {}",
+                    params.len(),
+                    I
+                )
+                .into(),
+            });
+        }
+        for (a, b) in self.beta.iter_mut().zip(params.into_iter()) {
+            *a = E::from_f64(*b).unwrap();
+        }
+        Ok(())
+    }
+}
+
 impl<E: Float, const I: usize> crate::ResetParams for Swish<E, I> {
     fn rand_params<RNG: rand::Rng>(
         &mut self,

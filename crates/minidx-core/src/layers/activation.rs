@@ -122,6 +122,24 @@ impl<E: Float> crate::ResetParams for Activation<E> {
     }
 }
 
+impl<E: Float> crate::LoadableModule for Activation<E> {
+    fn save(
+        &self,
+        path: String,
+        dict: &mut std::collections::HashMap<String, Vec<f64>>,
+    ) -> Result<(), crate::LoadSaveError> {
+        Ok(())
+    }
+
+    fn load(
+        &mut self,
+        path: String,
+        dict: &std::collections::HashMap<String, Vec<f64>>,
+    ) -> Result<(), crate::LoadSaveError> {
+        Ok(())
+    }
+}
+
 impl<E: Float> crate::VisualizableUnit for Activation<E> {
     const KIND: &'static str = "activation";
     type Params = ();

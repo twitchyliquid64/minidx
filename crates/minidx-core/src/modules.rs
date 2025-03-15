@@ -1,5 +1,13 @@
 use crate::optimizers::GradApplyer;
 use crate::{Error, Gradients};
+use std::collections::HashMap;
+
+/// An error loading or saving parameters.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LoadSaveError {
+    pub path: String,
+    pub err: String,
+}
 
 /// A unit of computation that consumes `Input` and produces [Module::Output].
 pub trait Module<X> {
@@ -145,6 +153,21 @@ impl<Input, M: TracedModule<Input, Trace = Input> + RevModule<Input> + BaseModul
     }
 }
 
+/// A module who's parameters can be loaded or saved.
+pub trait LoadableModule {
+    /// Saves the parameters to the given dictionary.
+    ///
+    /// FIXME: We should be storing parameters as their base type, not f64.
+    fn save(&self, path: String, dict: &mut HashMap<String, Vec<f64>>)
+        -> Result<(), LoadSaveError>;
+
+    /// Loads the parameters from the given dictionary.
+    ///
+    /// FIXME: We should be storing parameters as their base type, not f64.
+    fn load(&mut self, path: String, dict: &HashMap<String, Vec<f64>>)
+        -> Result<(), LoadSaveError>;
+}
+
 /// Marker trait for low-level layers which are composable modules.
 ///
 /// Set on layers which are native to minidx: needed to get around
@@ -200,6 +223,24 @@ macro_rules! fwd_tuple_impls {
             fn rand_params<RNG: rand::Rng>(&mut self, rng: &mut RNG, scale: f32) -> Result<(), Error> {
                 self.0.rand_params(rng, scale)?;
                 $(self.$idx.rand_params(rng, scale)?;)*
+                Ok(())
+            }
+        }
+
+        impl<
+            $last:
+            $(crate::LoadableModule, $rev_tail: )*
+            crate::LoadableModule
+        > crate::LoadableModule for ($($name,)+) {
+            fn save(&self, path: String, dict: &mut HashMap<String, Vec<f64>>) -> Result<(), LoadSaveError> {
+                self.0.save(path.clone() + ".0", dict)?;
+                $(self.$idx.save(format!("{}.{}", path, $idx), dict)?;)*
+                Ok(())
+            }
+
+            fn load(&mut self, path: String, dict: &HashMap<String, Vec<f64>>) -> Result<(), LoadSaveError> {
+                self.0.load(path.clone() + ".0", dict)?;
+                $(self.$idx.load(format!("{}.{}", path, $idx), dict)?;)*
                 Ok(())
             }
         }

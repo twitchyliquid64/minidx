@@ -80,6 +80,26 @@ impl<E: Dtype, const I: usize, M: Default + crate::Module<[E; I]> + crate::Reset
     }
 }
 
+impl<E: Dtype, const I: usize, M: Default + crate::Module<[E; I]>> crate::LoadableModule
+    for LR<E, I, M>
+{
+    fn save(
+        &self,
+        path: String,
+        dict: &mut std::collections::HashMap<String, Vec<f64>>,
+    ) -> Result<(), crate::LoadSaveError> {
+        Ok(())
+    }
+
+    fn load(
+        &mut self,
+        path: String,
+        dict: &std::collections::HashMap<String, Vec<f64>>,
+    ) -> Result<(), crate::LoadSaveError> {
+        Ok(())
+    }
+}
+
 impl<E: Dtype, const I: usize, M: Default + crate::Module<[E; I]> + crate::VisualizableUnit>
     crate::VisualizableUnit for LR<E, I, M>
 {

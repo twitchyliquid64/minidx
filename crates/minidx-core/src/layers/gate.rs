@@ -47,7 +47,6 @@ impl<
         A: crate::Module<[E; O], Output = [E; O]> + Default,
     > GLU<E, I, O, A>
 {
-
     #[doc(hidden)]
     pub fn connection_params(&self) -> (&[[E; I]; O], &[E; O], &[[E; I]; O], &[E; O]) {
         (
@@ -216,6 +215,48 @@ impl<
 
         self.sig_connections.update(applyer, updates.1 .0)?;
         self.sig_bias.update(applyer, updates.1 .1)?;
+
+        Ok(())
+    }
+}
+
+impl<
+        E: Dtype + Float + MatMulImpl,
+        const I: usize,
+        const O: usize,
+        A: crate::Module<[E; O], Output = [E; O]> + Default + crate::LoadableModule,
+    > crate::LoadableModule for GLU<E, I, O, A>
+{
+    fn save(
+        &self,
+        path: String,
+        dict: &mut std::collections::HashMap<String, Vec<f64>>,
+    ) -> Result<(), crate::LoadSaveError> {
+        self.gate_connections
+            .save(path.clone() + ".gate_connections", dict)?;
+        self.gate_bias.save(path.clone() + ".gate_bias", dict)?;
+        self.activation.save(path.clone() + ".activation", dict)?;
+
+        self.sig_connections
+            .save(path.clone() + ".sig_connections", dict)?;
+        self.sig_bias.save(path + ".sig_bias", dict)?;
+
+        Ok(())
+    }
+
+    fn load(
+        &mut self,
+        path: String,
+        dict: &std::collections::HashMap<String, Vec<f64>>,
+    ) -> Result<(), crate::LoadSaveError> {
+        self.gate_connections
+            .load(path.clone() + ".gate_connections", dict)?;
+        self.gate_bias.load(path.clone() + ".gate_bias", dict)?;
+        self.activation.load(path.clone() + ".activation", dict)?;
+
+        self.sig_connections
+            .load(path.clone() + ".sig_connections", dict)?;
+        self.sig_bias.load(path + ".sig_bias", dict)?;
 
         Ok(())
     }

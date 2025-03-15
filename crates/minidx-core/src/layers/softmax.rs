@@ -79,6 +79,24 @@ impl<E: Float, const I: usize> crate::RevModule<[E; I]> for Softmax {
     }
 }
 
+impl crate::LoadableModule for Softmax {
+    fn save(
+        &self,
+        path: String,
+        dict: &mut std::collections::HashMap<String, Vec<f64>>,
+    ) -> Result<(), crate::LoadSaveError> {
+        Ok(())
+    }
+
+    fn load(
+        &mut self,
+        path: String,
+        dict: &std::collections::HashMap<String, Vec<f64>>,
+    ) -> Result<(), crate::LoadSaveError> {
+        Ok(())
+    }
+}
+
 impl crate::ResetParams for Softmax {
     fn rand_params<RNG: rand::Rng>(
         &mut self,

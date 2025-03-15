@@ -131,6 +131,53 @@ impl<E: Dtype + MatMulImpl, const I: usize, const O: usize> crate::ResetParams f
     }
 }
 
+impl<E: Dtype + MatMulImpl, const I: usize, const O: usize> crate::LoadableModule
+    for Dense<E, I, O>
+{
+    fn save(
+        &self,
+        path: String,
+        dict: &mut std::collections::HashMap<String, Vec<f64>>,
+    ) -> Result<(), crate::LoadSaveError> {
+        dict.insert(
+            path,
+            self.weights
+                .iter()
+                .flatten()
+                .map(|f| f.to_f64().unwrap())
+                .collect(),
+        );
+        Ok(())
+    }
+
+    fn load(
+        &mut self,
+        path: String,
+        dict: &std::collections::HashMap<String, Vec<f64>>,
+    ) -> Result<(), crate::LoadSaveError> {
+        let params = dict.get(&path).ok_or(crate::LoadSaveError {
+            path: path.clone(),
+            err: "Parameters missing".into(),
+        })?;
+        if params.len() != I * O {
+            return Err(crate::LoadSaveError {
+                path,
+                err: format!(
+                    "Parameters have wrong size: got {}, want {}",
+                    params.len(),
+                    I * O
+                )
+                .into(),
+            });
+        }
+
+        for (a, b) in self.weights.iter_mut().flatten().zip(params.into_iter()) {
+            *a = E::from_f64(*b).unwrap();
+        }
+        Ok(())
+    }
+}
+
 impl<E: Dtype + MatMulImpl, const I: usize, const O: usize> crate::VisualizableUnit
     for Dense<E, I, O>
 {

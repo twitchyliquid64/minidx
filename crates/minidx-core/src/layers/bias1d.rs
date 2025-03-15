@@ -78,6 +78,46 @@ impl<E: Dtype, const I: usize> crate::VisualizableUnit for Bias1d<E, I> {
     }
 }
 
+impl<E: Dtype, const I: usize> crate::LoadableModule for Bias1d<E, I> {
+    fn save(
+        &self,
+        path: String,
+        dict: &mut std::collections::HashMap<String, Vec<f64>>,
+    ) -> Result<(), crate::LoadSaveError> {
+        dict.insert(
+            path,
+            self.bias.iter().map(|f| f.to_f64().unwrap()).collect(),
+        );
+        Ok(())
+    }
+
+    fn load(
+        &mut self,
+        path: String,
+        dict: &std::collections::HashMap<String, Vec<f64>>,
+    ) -> Result<(), crate::LoadSaveError> {
+        let params = dict.get(&path).ok_or(crate::LoadSaveError {
+            path: path.clone(),
+            err: "Parameters missing".into(),
+        })?;
+        if params.len() != I {
+            return Err(crate::LoadSaveError {
+                path,
+                err: format!(
+                    "Parameters have wrong size: got {}, want {}",
+                    params.len(),
+                    I
+                )
+                .into(),
+            });
+        }
+        for (a, b) in self.bias.iter_mut().zip(params.into_iter()) {
+            *a = E::from_f64(*b).unwrap();
+        }
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

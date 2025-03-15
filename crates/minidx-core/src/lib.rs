@@ -515,4 +515,47 @@ mod tests {
         assert!((w[1] - 1.0).abs() < 0.1);
         assert!((w[2] - 1.0).abs() < 0.1);
     }
+
+    #[test]
+    fn test_save() {
+        let mut network = (
+            layers::Dense::<f32, 2, 1>::default(),
+            layers::Bias1d::<f32, 1>::default(),
+            layers::GLU::<f32, 1, 1, layers::Swish<f32, 1>>::default(),
+            layers::Softmax::default(),
+        );
+
+        let mut store = std::collections::HashMap::new();
+        assert!(network.save("".into(), &mut store).is_ok());
+        assert_eq!(store.get(".0").unwrap().len(), 2);
+        assert_eq!(store.get(".1").unwrap().len(), 1);
+        assert_eq!(store.get(".2.sig_connections").unwrap().len(), 1);
+        assert_eq!(store.get(".2.sig_bias").unwrap().len(), 1);
+        assert_eq!(store.get(".2.gate_connections").unwrap().len(), 1);
+        assert_eq!(store.get(".2.gate_bias").unwrap().len(), 1);
+        assert_eq!(store.get(".2.activation").unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_load() {
+        let mut network = (
+            layers::Dense::<f32, 2, 1>::default(),
+            layers::Bias1d::<f32, 1>::default(),
+            layers::Swish::<f32, 1>::default(),
+        );
+        let mut rng = SmallRng::seed_from_u64(54645);
+        network.rand_params(&mut rng, 999.9).unwrap();
+
+        // OR gate
+        let store = std::collections::HashMap::from_iter([
+            (".0".into(), vec![1.0, 1.0]),
+            (".1".into(), vec![0.0]),
+            (".2".into(), vec![1.0e15]),
+        ]);
+        assert_eq!(network.load("".into(), &store), Ok(()));
+
+        assert_eq!(network.forward(&[1.0, 0.0]).unwrap(), [1.0]);
+        assert_eq!(network.forward(&[0.0, 1.0]).unwrap(), [1.0]);
+        assert_eq!(network.forward(&[0.0, 0.0]).unwrap(), [0.0]);
+    }
 }
