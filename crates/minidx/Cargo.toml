@@ -17,8 +17,9 @@ keywords = [
 ]
 
 [features]
-default = ["vis"]
+default = ["vis", "serde"]
 vis = ["dep:minidx-vis"]
+serde = ["minidx-core/serde"]
 
 [dependencies]
 minidx-core.workspace = true
@@ -26,5 +27,7 @@ num-traits.workspace = true
 rand.workspace = true
 rand_distr.workspace = true
 rayon.workspace = true
+serde.workspace = true
+serde_json.workspace = true
 
 minidx-vis = {workspace = true, optional = true}

@@ -18,6 +18,7 @@ keywords = [
 [features]
 default = ["gemm"]
 gemm = ["dep:gemm"]
+serde = ["dep:serde"]
 
 [dependencies]
 num-traits.workspace = true
@@ -26,3 +27,4 @@ rand_distr.workspace = true
 rayon.workspace = true
 
 gemm = {version = "^0.18", optional = true}
+serde = {workspace = true, optional = true}

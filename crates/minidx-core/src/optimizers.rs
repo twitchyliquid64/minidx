@@ -1,6 +1,7 @@
 use crate::misc::Decay;
 use crate::{Dtype, Float, Gradients, Unit};
 use num_traits::FromPrimitive;
+use serde::{Deserialize, Serialize};
 
 /// An object responsible for tweaking gradient updates, such as to
 /// add the effects of momentum, perform gradient clipping, etc.
@@ -20,6 +21,7 @@ pub trait GradApplyer {
 
 /// Describes the basic set of parameters used in training. Implements
 /// optimizer traits, so it can be passed into training methods.
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct TrainParams {
     /// The learning rate to use for update steps. See [Decay] for
     /// how to specify a fixed vs variable learning rate.
@@ -144,6 +146,12 @@ impl TrainParams {
             grad
         }
     }
+
+    /// Returns the [TrainParams] structure. Exists on [TrainParams] to match the signature
+    /// of other updater implementations.
+    pub fn train_params(&self) -> &Self {
+        self
+    }
 }
 
 impl<G: Gradients> GradAdjuster<G> for TrainParams {
@@ -250,6 +258,11 @@ impl<G: Gradients> Momentum<G> {
 
         self.velocity.clone()
     }
+
+    /// Returns the [TrainParams] structure.
+    pub fn train_params(&self) -> &TrainParams {
+        &self.params
+    }
 }
 
 impl<G: Gradients> GradAdjuster<G> for Momentum<G> {
@@ -271,6 +284,16 @@ impl<G: Gradients> GradApplyer for Momentum<G> {
 enum RMSPropBase<G: Gradients> {
     NoMomentum(TrainParams),
     Momentum(Momentum<G>),
+}
+
+impl<G: Gradients> RMSPropBase<G> {
+    /// Returns the [TrainParams] structure.
+    pub fn train_params(&self) -> &TrainParams {
+        match self {
+            RMSPropBase::NoMomentum(p) => p,
+            RMSPropBase::Momentum(m) => m.train_params(),
+        }
+    }
 }
 
 impl<G: Gradients> GradAdjuster<G> for RMSPropBase<G> {
@@ -336,6 +359,11 @@ where
             m.similarity_term = Some(similarity_term);
         }
         self
+    }
+
+    /// Returns the [TrainParams] structure.
+    pub fn train_params(&self) -> &TrainParams {
+        self.base.train_params()
     }
 }
 

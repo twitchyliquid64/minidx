@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 /// Computes a rolling exponential average, based on the given alpha value.
 ///
 /// An alpha of 0.5 to 1.0 gives higher weight to the most recent sample, whereas
@@ -44,7 +46,7 @@ fn cosine_decay(current_timestep: usize, end_timestep: usize, start_val: f32, en
 }
 
 /// A value which can decay according to some schedule over the progression of timesteps.
-#[derive(Clone, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub enum Decay {
     /// No decay: The specified constant is used regardless of timestep.
     None(f32),

@@ -1,5 +1,6 @@
 use minidx::prelude::*;
 use minidx::problem::Problem;
+use minidx::recorder::{BatchInfo, Every, Recorder};
 use minidx_vis::prelude::*;
 use rand::rngs::SmallRng;
 use rand::SeedableRng;
@@ -13,6 +14,11 @@ fn vis_as_video() {
         .num_threads(4)
         .stack_size(12 * 1024 * 1024)
         .build_global()
+        .unwrap();
+    let mut recorder = Recorder::new()
+        .save_to("/tmp/training.json")
+        .snapshot_freq(Every::Seconds(15))
+        .build()
         .unwrap();
 
     let network = (
@@ -30,7 +36,7 @@ fn vis_as_video() {
 
     use minidx::problem::ModularAddition10;
     let mut problem = ModularAddition10::new(rng);
-    let mut recorder = anim::Recorder::mp4(
+    let mut anim = anim::Recorder::mp4(
         "/tmp/test_vis_as_video.mp4",
         (1080, 720),
         ParamVisOpts::small(),
@@ -46,6 +52,7 @@ fn vis_as_video() {
         0.95,
     );
     for i in 0..450000 {
+        let start = std::time::Instant::now();
         let batch_loss = train_batch_parallel(
             &mut updater,
             &mut nn,
@@ -55,9 +62,22 @@ fn vis_as_video() {
         );
         if i % 523 == 0 {
             let other_loss = problem.avg_loss(&mut nn, |got, want| got.mse(want), 5);
-            recorder.push(i as f32, (other_loss + batch_loss) / 2.0, nn.clone());
+            anim.push(i as f32, (other_loss + batch_loss) / 2.0, nn.clone());
         }
+
+        recorder
+            .record_batch(
+                BatchInfo {
+                    step: i,
+                    loss: batch_loss as f64,
+                    size: 20,
+                    time_us: std::time::Instant::now().duration_since(start).as_micros() as u64,
+                },
+                updater.train_params(),
+                &mut nn,
+            )
+            .unwrap();
     }
 
-    assert!(matches!(recorder.wait(), Some(anim::RecorderErr::Recv(_))));
+    assert!(matches!(anim.wait(), Some(anim::RecorderErr::Recv(_))));
 }

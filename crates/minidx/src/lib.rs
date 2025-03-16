@@ -134,6 +134,8 @@ pub mod prelude {
 
 pub mod problem;
 
+pub mod recorder;
+
 /// OneHotEncoder describes the encoding of some integer value modulus N into
 /// a vector where exactly one value is set.
 #[derive(Clone, Debug, Default)]
