@@ -1,13 +1,14 @@
 [package]
 edition = "2021"
 name = "minidx"
-version = "0.1.4"
+version = "0.1.5"
 license = "MIT OR Apache-2.0"
 
 description = "Simple, compile-time-sized neural networks."
 homepage = "https://github.com/twitchyliquid64/minidx"
 documentation = "https://docs.rs/minidx"
 repository = "https://github.com/twitchyliquid64/minidx"
+readme = "README.md"
 
 keywords = [
     "deep-learning",

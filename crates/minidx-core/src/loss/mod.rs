@@ -1,4 +1,4 @@
-use crate::{Dtype, Float};
+use crate::Float;
 
 /// Some output which can have its loss computed.
 pub trait DiffLoss: Clone {

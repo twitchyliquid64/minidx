@@ -1,5 +1,28 @@
 //! Descriptors of different neural layers which can be composed into a network.
-
+//!
+//! You can compose these layers into a neural network using tuples, e.g.:
+//!
+//! ```
+//! use minidx::prelude::layers::*;
+//! type network = (
+//!   (Dense::<1, 3>, Relu),
+//!   (Dense::<3, 3>, Relu),
+//!   Softmax,
+//! );
+//! ```
+//! Which you can then instantiate to create a network you can train or run inference on:
+//! ```
+//! # use minidx::prelude::*;
+//! # use minidx::prelude::layers::*;
+//! # type network = (
+//! #   (Dense::<1, 3>, Relu),
+//! #   (Dense::<3, 3>, Relu),
+//! #   Softmax,
+//! # );
+//! use minidx::Buildable;
+//! let my_net = Buildable::<f32>::build(&network::default());
+//! ```
+//!
 use crate::Buildable;
 use minidx_core::layers::{
     Activation, Bias1d, Conv1d as Conv1dL, Dense as DenseL, Softmax as SoftmaxL, Swish as SwishL,
@@ -9,6 +32,11 @@ use minidx_core::matmul::MatMulImpl;
 use minidx_core::{Const, Dtype};
 
 /// A fully-connected layer with a fixed number of inputs and outputs. No bias.
+///
+///  - **I**: The number of inputs this layer takes.
+///  - **O**: The number of outputs this layer produces.
+///
+/// This results in `I*O` number of learnable parameters.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Dense<const I: usize, const O: usize> {}
 
@@ -23,6 +51,11 @@ impl<const I: usize, const O: usize, E: Dtype + MatMulImpl> Buildable<E> for Den
 /// learnable bias on each output. A standard pre-activation MLP layer.
 ///
 /// This is the same as putting a [Bias1d] after a [Dense].
+///
+///  - **I**: The number of inputs this layer takes.
+///  - **O**: The number of outputs this layer produces.
+///
+/// This results in `I*O + O` number of learnable parameters.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Linear<const I: usize, const O: usize> {}
 
@@ -34,6 +67,11 @@ impl<const I: usize, const O: usize, E: Dtype + MatMulImpl> Buildable<E> for Lin
 }
 
 /// The ReLu activation function.
+///
+/// `Output = max(0, Input)`
+///
+/// This layer produces the same number of outputs as given inputs, and there
+/// are no learnable parameters.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Relu;
 
@@ -45,6 +83,14 @@ impl<E: Dtype + minidx_core::Float> Buildable<E> for Relu {
 }
 
 /// The Leaky-ReLu activation function.
+///
+/// The given parameter `.0` describes the multiplier to apply to each input when
+/// input is less than zero.
+///
+/// `Output = max(Input * self.0, Input)`
+///
+/// This layer produces the same number of outputs as given inputs, and there
+/// are no learnable parameters.
 #[derive(Clone, Copy, Debug)]
 pub struct LeakyRelu(pub f32);
 
@@ -62,6 +108,11 @@ impl<E: Dtype + minidx_core::Float> Buildable<E> for LeakyRelu {
 }
 
 /// The Sigmoid activation function.
+///
+/// `Output = sigmoid(Input)`
+///
+/// This layer produces the same number of outputs as given inputs, and there
+/// are no learnable parameters.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Sigmoid;
 
@@ -73,6 +124,11 @@ impl<E: Dtype + minidx_core::Float> Buildable<E> for Sigmoid {
 }
 
 /// The SiLU (Swish /w Beta=1) activation function.
+///
+/// `Output = Input * sigmoid(Input)`
+///
+/// This layer produces the same number of outputs as given inputs, and there
+/// are no learnable parameters.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct SiLU;
 
@@ -84,6 +140,9 @@ impl<E: Dtype + minidx_core::Float> Buildable<E> for SiLU {
 }
 
 /// A softmax layer with a given temperature.
+///
+/// This layer produces the same number of outputs as given inputs, and there
+/// are no learnable parameters.
 #[derive(Clone, Copy, Debug)]
 pub struct Softmax(pub f32);
 
@@ -101,6 +160,16 @@ impl<E: Dtype + minidx_core::Float> Buildable<E> for Softmax {
 }
 
 /// A GLU layer with a sigmoid gate.
+///
+/// Gated Linear Units learn a linear transform + bias of the input
+/// values to the output values, while also learning when to activate
+/// each output (the 'gate', a linear transform + bias + sigmoid).
+///
+///  - **I**: The number of inputs this layer takes.
+///  - **O**: The number of outputs this layer produces.
+///  - **E**: The datatype of the parameters (i.e. [f32]).
+///
+/// This results in `2*I*O + 2O` number of learnable parameters.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct GLU<const I: usize, const O: usize> {}
 
@@ -114,6 +183,16 @@ impl<const I: usize, const O: usize, E: Dtype + minidx_core::Float + MatMulImpl>
 }
 
 /// A GLU layer with a Swish gate.
+///
+/// Gated Linear Units learn a linear transform + bias of the input
+/// values to the output values, while also learning when to activate
+/// each output (the 'gate', a linear transform + bias + swish).
+///
+///  - **I**: The number of inputs this layer takes.
+///  - **O**: The number of outputs this layer produces.
+///  - **E**: The datatype of the parameters (i.e. [f32]).
+///
+/// This results in `2*I*O + 3O` number of learnable parameters.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct SwiGLU<const I: usize, const O: usize> {}
 
@@ -127,6 +206,16 @@ impl<const I: usize, const O: usize, E: Dtype + minidx_core::Float + MatMulImpl>
 }
 
 /// A GLU layer with a leaky-relu gate.
+///
+/// Gated Linear Units learn a linear transform + bias of the input
+/// values to the output values, while also learning when to activate
+/// each output (the 'gate', a linear transform + bias + leaky-relu).
+///
+///  - **I**: The number of inputs this layer takes.
+///  - **O**: The number of outputs this layer produces.
+///  - **E**: The datatype of the parameters (i.e. [f32]).
+///
+/// This results in `2*I*O + 2O` number of learnable parameters.
 #[derive(Clone, Copy, Debug)]
 pub struct GLULeakyRelu<const I: usize, const O: usize>(pub f32);
 
@@ -165,6 +254,10 @@ where
 }
 
 /// The Swish activation function with learnable beta.
+///
+///  - **I**: The number of inputs this layer takes.
+///
+/// This results in `2*I*O + 2O` number of learnable parameters.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Swish<const I: usize> {}
 
@@ -176,6 +269,11 @@ impl<const I: usize, E: Dtype + minidx_core::Float> Buildable<E> for Swish<I> {
 }
 
 /// Learning Rate Divisor - wrapper to reduce local learning rate.
+///
+///  - **E**: The datatype of the parameters (i.e. [f32]).
+///  - **I**: The number of inputs this layer takes.
+///  - **D**: The divisor of the learning rate.
+///  - **B**: The layer(s) this layer wraps.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct LRDiv<E: Dtype, const I: usize, const D: usize, B: Buildable<E>> {
     module: B,

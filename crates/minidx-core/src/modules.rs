@@ -46,6 +46,8 @@ pub trait RevModule<X>: Module<X> {
 /// but also produces artifacts describing the execution that can later be used
 /// during backprop.
 ///
+/// Neural-network layers implement this trait.
+///
 /// A supertrait of [Module].
 pub trait TracedModule<X>: Module<X> {
     /// The type that this unit produces to describe intermediate state.
@@ -72,26 +74,35 @@ impl<Input, M: Module<Input> + BaseModule> TracedModule<Input> for M {
 /// Some sequential computation which can perform backprop on itself given trace state
 /// and the gradients of its outputs: computing parameter updates for itself.
 ///
+/// Trainable layers implement this trait.
+///
 /// Relies on behavior from the [TracedModule] trait.
 pub trait BackpropModule<X>: TracedModule<X> {
     /// Type describing movement in the modules' own parameters in response to backpropagation.
     type SelfGrads;
 
+    /// Computes gradients for this layer/module, given tracing state from forward
+    /// execution, and the gradients of the output.
+    ///
+    /// Returns the gradients with respect to the input to the layer/module, as well as
+    /// gradients with respect to parameters (needed to call [`update()`](BackpropModule::update)).
     fn backprop(
         &self,
         trace: &<Self as TracedModule<X>>::Trace,
         grads_wrt_output: <Self as Module<X>>::Output,
     ) -> (X, Self::SelfGrads);
 
-    /// Applies a gradient update step: adding product of the provided gradients and
-    /// the scalar to the parameters.
+    /// Applies a gradient update step, given (Self::SelfGrads) and a [`GradApplyer`](GradApplyer).
+    ///
+    /// While `updates` describes the change in parameters, `applyer` is used to change the parameters
+    /// of this layer, which may include applying any kind of clipping or regularization.
     fn update(
         &mut self,
         applyer: &mut impl GradApplyer,
         updates: Self::SelfGrads,
     ) -> Result<(), Error>;
 
-    /// Initializes state which can be used to track momentum during training.
+    /// Returns a [`GradApplyer`](GradApplyer) object needed to train using SGD + momentum.
     fn new_momentum(
         &self,
         params: crate::optimizers::TrainParams,
@@ -103,7 +114,7 @@ pub trait BackpropModule<X>: TracedModule<X> {
         crate::optimizers::Momentum::new(params, momentum_coefficient)
     }
 
-    /// Initializes state which can be used to track rmsprop during training.
+    /// Returns a [`GradApplyer`](GradApplyer) object needed to train using rmsprop.
     fn new_rmsprop(
         &self,
         params: crate::optimizers::TrainParams,
@@ -116,7 +127,7 @@ pub trait BackpropModule<X>: TracedModule<X> {
         crate::optimizers::RMSProp::new(params, beta)
     }
 
-    /// Initializes state which can be used to track rmsprop & momentum during training.
+    /// Returns a [`GradApplyer`](GradApplyer) object needed to train using rmsprop + momentum.
     fn new_rmsprop_with_momentum(
         &self,
         params: crate::optimizers::TrainParams,
@@ -176,6 +187,14 @@ pub(crate) trait BaseModule {}
 
 /// Something that can have its learnable parameters reset.
 pub trait ResetParams {
+    /// Sensibly initializes the learnable parameters of some module.
+    ///
+    /// This typically corresponds to Xavier/Glorot initialization, where
+    /// parameters are sampled from a normal distribution of a given magnitude `scale`,
+    /// divided by the width of the layer.
+    ///
+    /// Scale is typically `1.0`, but smaller values can help if you encounter stability issues
+    /// early in training.
     fn rand_params<RNG: rand::Rng>(&mut self, rng: &mut RNG, scale: f32) -> Result<(), Error>;
 }
 
@@ -320,7 +339,7 @@ mod tests {
 
     #[test]
     fn test_module_backward() {
-        let mut network = (
+        let network = (
             layers::Dense::<f32, 2, 3>::default(),
             layers::Activation::Relu,
             layers::Bias1d::<f32, 3>::default(),
@@ -330,7 +349,7 @@ mod tests {
         let (grad_wrt_input, _gradient_updates) = network.backprop(&trace, [0.0, 0.0, 0.0]);
         assert_eq!(grad_wrt_input, [0.0, 0.0]);
 
-        let mut network = (
+        let network = (
             layers::Dense::<f32, 2, 3>::default(),
             layers::Activation::Relu,
             layers::Bias1d::<f32, 3>::default(),
@@ -344,7 +363,7 @@ mod tests {
 
     #[test]
     fn test_nested_module() {
-        let mut network = (
+        let network = (
             (
                 layers::Dense::<f32, 2, 3>::default(),
                 layers::Bias1d::<f32, 3>::default(),
@@ -377,7 +396,7 @@ mod tests {
 
     #[test]
     fn test_dense_backprop() {
-        let mut network = layers::Dense::<f32, 2, 3>::default();
+        let network = layers::Dense::<f32, 2, 3>::default();
 
         let (_, trace) = network.traced_forward([1.0, 2.0]).unwrap();
         let (grad_wrt_input, gradient_updates) = network.backprop(&trace, [0.0, 0.0, 0.0]);
@@ -390,7 +409,7 @@ mod tests {
 
     #[test]
     fn test_bias1d_backprop() {
-        let mut network = layers::Bias1d::<f32, 2>::default();
+        let network = layers::Bias1d::<f32, 2>::default();
 
         let (_, trace) = network.traced_forward([1.0, 2.0]).unwrap();
         let (grad_wrt_input, gradient_updates) = network.backprop(&trace, [0.0, 0.0]);
@@ -403,7 +422,7 @@ mod tests {
 
     #[test]
     fn test_activation_backprop() {
-        let mut network = layers::Activation::Relu;
+        let network = layers::Activation::Relu;
 
         let (_, trace) = network.traced_forward([1.0, 2.0]).unwrap();
         let (grad_wrt_input, gradient_updates) = network.backprop(&trace, [0.0, 0.0]);

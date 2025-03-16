@@ -41,7 +41,7 @@ impl LineChart {
         crate::font::ensure_plotters_font_registered();
 
         let size = (dt.width() as u32, dt.height() as u32);
-        let mut chart_area =
+        let chart_area =
             BitMapBackend::<BGRXPixel>::with_buffer_and_format(dt.get_data_u8_mut(), size)
                 .unwrap()
                 .into_drawing_area();

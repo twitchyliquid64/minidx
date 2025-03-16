@@ -1,3 +1,4 @@
+//! The core types and logic implementing the `minidx` crate.
 mod dtypes;
 pub use dtypes::{Dtype, Float, Unit};
 pub mod shapes;
@@ -76,7 +77,7 @@ where
     LV: std::ops::Mul<f32, Output = f32>,
     <Network as modules::BackpropModule<Input>>::SelfGrads: Gradients,
 {
-    let mut grads: Option<(Network::SelfGrads, LV)> = None;
+    let grads: Option<(Network::SelfGrads, LV)> = None;
 
     let (mut grads, lv) = (0..batch_size).into_iter().fold(
         (Network::SelfGrads::empty(), LV::default()),
@@ -187,7 +188,7 @@ mod tests {
 
             // NOTE: we should use the gradients WRT the loss as the input to
             // backprop, not the target.
-            let (_, mut gradient_updates) = network.backprop(&trace, target.clone());
+            let (_, gradient_updates) = network.backprop(&trace, target.clone());
 
             let gradient_updates = updater.adjust(gradient_updates, -loss);
             network
@@ -518,7 +519,7 @@ mod tests {
 
     #[test]
     fn test_save() {
-        let mut network = (
+        let network = (
             layers::Dense::<f32, 2, 1>::default(),
             layers::Bias1d::<f32, 1>::default(),
             layers::GLU::<f32, 1, 1, layers::Swish<f32, 1>>::default(),

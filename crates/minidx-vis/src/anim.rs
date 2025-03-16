@@ -4,9 +4,6 @@ use std::sync::mpsc::{channel, RecvError, Sender};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-use plotters::backend::{BGRXPixel, BitMapBackend};
-use plotters::prelude::*;
-
 use fontdue::layout::LayoutSettings;
 
 #[derive(Debug)]

@@ -1,3 +1,7 @@
+/// Computes a rolling exponential average, based on the given alpha value.
+///
+/// An alpha of 0.5 to 1.0 gives higher weight to the most recent sample, whereas
+/// an alpha of 0.1 to 0.3 gives higher weight to past samples.
 pub struct ExpAvg {
     alpha: f32,       // Smoothing factor (0 < alpha ≤ 1)
     avg: Option<f32>, // Optional to handle the first sample
@@ -14,11 +18,12 @@ impl ExpAvg {
     }
 
     /// Updates the moving average with a new sample.
-    pub fn update(&mut self, sample: f32) {
+    pub fn update(&mut self, sample: f32) -> f32 {
         self.avg = Some(match self.avg {
             Some(current_avg) => self.alpha * sample + (1.0 - self.alpha) * current_avg,
             None => sample, // Initialize with the first sample
         });
+        self.avg.unwrap()
     }
 
     /// Returns the current average.
@@ -41,11 +46,12 @@ fn cosine_decay(current_timestep: usize, end_timestep: usize, start_val: f32, en
 /// A value which can decay according to some schedule over the progression of timesteps.
 #[derive(Clone, Debug)]
 pub enum Decay {
+    /// No decay: The specified constant is used regardless of timestep.
     None(f32),
-    Linear {
-        start: f32,
-        decay: f32,
-    },
+    /// Linear decay: The value decays from `start` by `decay` each timestep.
+    Linear { start: f32, decay: f32 },
+    /// Cosine decay: The value smoothly decays from `start` to `end` over `num_steps` timesteps,
+    /// with the decay matching the shape of the cosine function.
     Cosine {
         start: f32,
         end: f32,
@@ -54,6 +60,7 @@ pub enum Decay {
 }
 
 impl Decay {
+    /// The output value at timestep 0.
     pub fn start_value(&self) -> f32 {
         use Decay::*;
         match self {
@@ -63,6 +70,7 @@ impl Decay {
         }
     }
 
+    /// The output value at the specified timestep.
     pub fn at_timestep(&self, timestep: usize) -> f32 {
         use Decay::*;
         match self {

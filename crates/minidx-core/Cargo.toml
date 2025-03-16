@@ -1,7 +1,7 @@
 [package]
 edition = "2021"
 name = "minidx-core"
-version = "0.1.4"
+version = "0.1.5"
 license = "MIT OR Apache-2.0"
 
 description = "Core crate for minidx, a simple + compile-time neural-network library."

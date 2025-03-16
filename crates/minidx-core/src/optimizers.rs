@@ -21,12 +21,19 @@ pub trait GradApplyer {
 /// Describes the basic set of parameters used in training. Implements
 /// optimizer traits, so it can be passed into training methods.
 pub struct TrainParams {
+    /// The learning rate to use for update steps. See [Decay] for
+    /// how to specify a fixed vs variable learning rate.
     pub lr: Decay,
+    /// The L1 regularization to apply each update step.
     pub l1_reg: f32,
+    /// The L2 regularization to apply each update step.
     pub l2_reg: f32,
 
+    /// If set, the number of update steps for which the learning rate
+    /// is ramped up at the beginning.
     pub soft_start_epochs: Option<usize>,
 
+    /// If set, the maximum magnitude of any update to any parameter.
     pub grad_clip: Option<f32>,
 
     step: usize,
