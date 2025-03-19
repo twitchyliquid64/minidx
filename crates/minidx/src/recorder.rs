@@ -1,4 +1,4 @@
-use minidx_core::optimizers::TrainParams;
+use minidx_core::optimizers::{TrainInfo, TrainParams};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::File;
@@ -28,7 +28,7 @@ impl Every {
 pub struct RecorderBuilder {
     to_path: Option<String>,
     batch: Option<Every>,
-    params: Option<Every>,
+    info: Option<Every>,
     snapshot: Option<Every>,
 }
 
@@ -37,7 +37,7 @@ impl Default for RecorderBuilder {
         Self {
             to_path: None,
             batch: Some(Every::Steps(250)),
-            params: Some(Every::Steps(5000)),
+            info: Some(Every::Steps(2000)),
             snapshot: Some(Every::Seconds(2 * 60)),
         }
     }
@@ -53,8 +53,9 @@ impl RecorderBuilder {
                 Some(r) => Some(r?),
                 None => None,
             },
+            sent_params: false,
             batch: self.batch.map(|e| (e, 0, now)),
-            params: self.params.map(|e| (e, 0, now)),
+            info: self.info.map(|e| (e, 0, now)),
             snapshot: self.snapshot.map(|e| (e, 0, now)),
         })
     }
@@ -67,7 +68,7 @@ impl RecorderBuilder {
 
     /// Configures how often the training parameters should be recorded.
     pub fn training_params_freq(mut self, e: Every) -> Self {
-        self.params = Some(e);
+        self.info = Some(e);
         self
     }
 
@@ -89,9 +90,11 @@ impl RecorderBuilder {
 pub struct Recorder {
     file: Option<File>,
 
+    sent_params: bool,
+
     // (Every, last_fired_step, last_fired_time)
     batch: Option<(Every, usize, Instant)>,
-    params: Option<(Every, usize, Instant)>,
+    info: Option<(Every, usize, Instant)>,
     snapshot: Option<(Every, usize, Instant)>,
 }
 
@@ -128,8 +131,13 @@ impl Recorder {
     ) -> std::io::Result<()> {
         let now = Instant::now();
 
-        let write_params = self
-            .params
+        if !self.sent_params {
+            self.write(Record::Params(params.clone()))?;
+            self.sent_params = true;
+        }
+
+        let write_info = self
+            .info
             .as_mut()
             .map(|(e, last_steps, last_time)| {
                 if e.fires(info.step, now, *last_steps, *last_time) {
@@ -168,8 +176,8 @@ impl Recorder {
             })
             .unwrap_or(false);
 
-        if write_params {
-            self.write(Record::Params(params.clone()))?;
+        if write_info {
+            self.write(Record::TrainInfo(params.into()))?;
         }
         if write_batch {
             self.write(Record::Batch(info.clone()))?;
@@ -201,6 +209,7 @@ pub struct BatchInfo {
 pub enum Record {
     Batch(BatchInfo),
     Params(TrainParams),
+    TrainInfo(TrainInfo),
     Snapshot {
         step: usize,
         params: HashMap<String, Vec<f64>>,

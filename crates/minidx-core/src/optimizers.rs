@@ -3,6 +3,19 @@ use crate::{Dtype, Float, Gradients, Unit};
 use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
 
+/// Describes the training parameters at some instant, serialized during recording.
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct TrainInfo {
+    /// The learning rate used this update step.
+    pub lr: f32,
+    /// The L1 regularization applied each update step.
+    pub l1_reg: f32,
+    /// The L2 regularization applied each update step.
+    pub l2_reg: f32,
+    /// The 0-indexed count of update steps.
+    pub step: usize,
+}
+
 /// An object responsible for tweaking gradient updates, such as to
 /// add the effects of momentum, perform gradient clipping, etc.
 pub trait GradAdjuster<G: Gradients> {
@@ -50,6 +63,17 @@ impl Default for TrainParams {
             soft_start_epochs: None,
             grad_clip: None,
             step: 0,
+        }
+    }
+}
+
+impl Into<TrainInfo> for &TrainParams {
+    fn into(self) -> TrainInfo {
+        TrainInfo {
+            lr: self.current_lr(),
+            l1_reg: self.l1_reg,
+            l2_reg: self.l2_reg,
+            step: self.step,
         }
     }
 }
