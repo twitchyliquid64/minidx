@@ -123,6 +123,22 @@ impl<E: Dtype + minidx_core::Float> Buildable<E> for Sigmoid {
     }
 }
 
+/// The tanh activation function.
+///
+/// `Output = tanh(Input)`
+///
+/// This layer produces the same number of outputs as given inputs, and there
+/// are no learnable parameters.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Tanh;
+
+impl<E: Dtype + minidx_core::Float> Buildable<E> for Tanh {
+    type Built = Activation<E>;
+    fn try_build(&self) -> Result<Self::Built, crate::Error> {
+        Ok(Activation::<E>::Tanh)
+    }
+}
+
 /// The SiLU (Swish /w Beta=1) activation function.
 ///
 /// `Output = Input * sigmoid(Input)`

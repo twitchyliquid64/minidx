@@ -117,6 +117,7 @@ pub trait Float: Dtype + std::ops::Neg<Output = Self> {
     fn ln(self) -> Self;
     fn sqrt(self) -> Self;
     fn abs(self) -> Self;
+    fn tanh(self) -> Self;
     fn min(self, other: Self) -> Self;
     fn max(self, other: Self) -> Self;
 }
@@ -140,6 +141,10 @@ impl Float for f32 {
     #[inline(always)]
     fn abs(self) -> Self {
         f32::abs(self)
+    }
+    #[inline(always)]
+    fn tanh(self) -> Self {
+        f32::tanh(self)
     }
     #[inline(always)]
     fn min(self, other: Self) -> Self {
@@ -169,6 +174,10 @@ impl Float for f64 {
     #[inline(always)]
     fn abs(self) -> Self {
         f64::abs(self)
+    }
+    #[inline(always)]
+    fn tanh(self) -> Self {
+        f64::tanh(self)
     }
     #[inline(always)]
     fn min(self, other: Self) -> Self {

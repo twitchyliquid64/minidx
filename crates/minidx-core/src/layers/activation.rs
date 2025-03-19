@@ -20,6 +20,10 @@ pub enum Activation<E: Float> {
     ///
     /// The derivative is `sigmoid(t) * (1.0 + t * (1.0 - sigmoid(t)))`.
     SiLU,
+    /// [Tanh](https://en.wikipedia.org/wiki/Hyperbolic_functions). `(e^x - e^-x) / (e^x + e^-x)`.
+    ///
+    /// The derivative is `1 - (tanh(t)^2)`.
+    Tanh,
     /// [Leaky ReLu](https://en.wikipedia.org/wiki/Rectifier_(neural_networks)#Piecewise-linear_variants). `if t > 0 { t } else { a * t }`
     LeakyRelu(E),
 }
@@ -32,6 +36,7 @@ impl<E: Float> Activation<E> {
             *o = match self {
                 Activation::Sigmoid => sigmoid(*i),
                 Activation::SiLU => *i * sigmoid(*i),
+                Activation::Tanh => i.tanh(),
                 Activation::Relu => E::default().max(*i),
                 Activation::LeakyRelu(a) => {
                     if i < &E::default() {
@@ -59,6 +64,10 @@ impl<E: Float> Activation<E> {
                 Activation::SiLU => {
                     let sig = sigmoid(*i);
                     sig * (E::ONE + *i * E::ONE.sub(sig))
+                }
+                Activation::Tanh => {
+                    let tanh = i.tanh();
+                    E::ONE.sub(tanh * tanh)
                 }
                 Activation::Relu => {
                     if i > &E::default() {
@@ -176,6 +185,22 @@ mod tests {
         let back = layer.backward(&[2.0]);
         assert!(back[0] > 1.08, "val is {}", back[0]);
         assert!(back[0] < 1.10, "val is {}", back[0]);
+    }
+
+    #[test]
+    fn test_tanh() {
+        let layer = Activation::Tanh;
+        let out = layer.forward(&[10.0, -10.0, 0.0]);
+        assert!(out[0] > 0.9, "val is {}", out[0]);
+        assert!(out[0] < 1.01, "val is {}", out[0]);
+        assert!(out[1] > -1.1, "val is {}", out[1]);
+        assert!(out[1] < -0.9, "val is {}", out[1]);
+        assert!(out[2] == 0.0, "val is {}", out[2]);
+
+        let back = layer.backward(&[0.0, -3.0]);
+        assert!(back[0] > 0.99, "val is {}", back[0]);
+        assert!(back[0] < 1.01, "val is {}", back[0]);
+        assert!(back[1] < 0.01, "val is {}", back[0]);
     }
 
     #[test]
