@@ -25,11 +25,11 @@
 //!
 use crate::Buildable;
 use minidx_core::layers::{
-    Activation, Bias1d, Conv1d as Conv1dL, Dense as DenseL, Softmax as SoftmaxL, Swish as SwishL,
-    GLU as GLUL, LR,
+    Activation, Bias1d, Conv1d as Conv1dL, Dense as DenseL, Diag, ScalarScale, Softmax as SoftmaxL,
+    Swish as SwishL, GLU as GLUL, LR,
 };
 use minidx_core::matmul::MatMulImpl;
-use minidx_core::{Const, Dtype};
+use minidx_core::{Const, Dtype, Float};
 
 /// A fully-connected layer with a fixed number of inputs and outputs. No bias.
 ///
@@ -75,7 +75,7 @@ impl<const I: usize, const O: usize, E: Dtype + MatMulImpl> Buildable<E> for Lin
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Relu;
 
-impl<E: Dtype + minidx_core::Float> Buildable<E> for Relu {
+impl<E: Dtype + Float> Buildable<E> for Relu {
     type Built = Activation<E>;
     fn try_build(&self) -> Result<Self::Built, crate::Error> {
         Ok(Activation::<E>::Relu)
@@ -100,7 +100,7 @@ impl Default for LeakyRelu {
     }
 }
 
-impl<E: Dtype + minidx_core::Float> Buildable<E> for LeakyRelu {
+impl<E: Dtype + Float> Buildable<E> for LeakyRelu {
     type Built = Activation<E>;
     fn try_build(&self) -> Result<Self::Built, crate::Error> {
         Ok(Activation::<E>::LeakyRelu(E::from_f32(self.0).unwrap()))
@@ -116,7 +116,7 @@ impl<E: Dtype + minidx_core::Float> Buildable<E> for LeakyRelu {
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Sigmoid;
 
-impl<E: Dtype + minidx_core::Float> Buildable<E> for Sigmoid {
+impl<E: Dtype + Float> Buildable<E> for Sigmoid {
     type Built = Activation<E>;
     fn try_build(&self) -> Result<Self::Built, crate::Error> {
         Ok(Activation::<E>::Sigmoid)
@@ -132,7 +132,7 @@ impl<E: Dtype + minidx_core::Float> Buildable<E> for Sigmoid {
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Tanh;
 
-impl<E: Dtype + minidx_core::Float> Buildable<E> for Tanh {
+impl<E: Dtype + Float> Buildable<E> for Tanh {
     type Built = Activation<E>;
     fn try_build(&self) -> Result<Self::Built, crate::Error> {
         Ok(Activation::<E>::Tanh)
@@ -148,7 +148,7 @@ impl<E: Dtype + minidx_core::Float> Buildable<E> for Tanh {
 #[derive(Clone, Copy, Debug, Default)]
 pub struct SiLU;
 
-impl<E: Dtype + minidx_core::Float> Buildable<E> for SiLU {
+impl<E: Dtype + Float> Buildable<E> for SiLU {
     type Built = Activation<E>;
     fn try_build(&self) -> Result<Self::Built, crate::Error> {
         Ok(Activation::<E>::SiLU)
@@ -168,7 +168,7 @@ impl Default for Softmax {
     }
 }
 
-impl<E: Dtype + minidx_core::Float> Buildable<E> for Softmax {
+impl<E: Dtype + Float> Buildable<E> for Softmax {
     type Built = SoftmaxL;
     fn try_build(&self) -> Result<Self::Built, crate::Error> {
         Ok(SoftmaxL(self.0))
@@ -189,9 +189,7 @@ impl<E: Dtype + minidx_core::Float> Buildable<E> for Softmax {
 #[derive(Clone, Copy, Debug, Default)]
 pub struct GLU<const I: usize, const O: usize> {}
 
-impl<const I: usize, const O: usize, E: Dtype + minidx_core::Float + MatMulImpl> Buildable<E>
-    for GLU<I, O>
-{
+impl<const I: usize, const O: usize, E: Dtype + Float + MatMulImpl> Buildable<E> for GLU<I, O> {
     type Built = GLUL<E, I, O, Activation<E>>;
     fn try_build(&self) -> Result<Self::Built, crate::Error> {
         Ok(GLUL::sigmoid())
@@ -212,9 +210,7 @@ impl<const I: usize, const O: usize, E: Dtype + minidx_core::Float + MatMulImpl>
 #[derive(Clone, Copy, Debug, Default)]
 pub struct SwiGLU<const I: usize, const O: usize> {}
 
-impl<const I: usize, const O: usize, E: Dtype + minidx_core::Float + MatMulImpl> Buildable<E>
-    for SwiGLU<I, O>
-{
+impl<const I: usize, const O: usize, E: Dtype + Float + MatMulImpl> Buildable<E> for SwiGLU<I, O> {
     type Built = GLUL<E, I, O, SwishL<E, O>>;
     fn try_build(&self) -> Result<Self::Built, crate::Error> {
         Ok(GLUL::swish())
@@ -241,7 +237,7 @@ impl<const I: usize, const O: usize> Default for GLULeakyRelu<I, O> {
     }
 }
 
-impl<const I: usize, const O: usize, E: Dtype + minidx_core::Float + MatMulImpl> Buildable<E>
+impl<const I: usize, const O: usize, E: Dtype + Float + MatMulImpl> Buildable<E>
     for GLULeakyRelu<I, O>
 {
     type Built = GLUL<E, I, O, Activation<E>>;
@@ -254,12 +250,8 @@ impl<const I: usize, const O: usize, E: Dtype + minidx_core::Float + MatMulImpl>
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Conv1d<const I: usize, const O: usize, const F: usize> {}
 
-impl<
-        const I: usize,
-        const O: usize,
-        const F: usize,
-        E: Dtype + minidx_core::Float + MatMulImpl,
-    > Buildable<E> for Conv1d<I, O, F>
+impl<const I: usize, const O: usize, const F: usize, E: Dtype + Float + MatMulImpl> Buildable<E>
+    for Conv1d<I, O, F>
 where
     Const<F>: minidx_core::layers::Conv1dKernel<E, Const<I>, Const<O>>,
 {
@@ -277,7 +269,7 @@ where
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Swish<const I: usize> {}
 
-impl<const I: usize, E: Dtype + minidx_core::Float> Buildable<E> for Swish<I> {
+impl<const I: usize, E: Dtype + Float> Buildable<E> for Swish<I> {
     type Built = SwishL<E, I>;
     fn try_build(&self) -> Result<Self::Built, crate::Error> {
         Ok(SwishL::default())
@@ -311,6 +303,27 @@ impl<
             update_multiplier: (D as f32).recip(),
             ..Default::default()
         })
+    }
+}
+
+/// The 'Dynamic Tanh' normalization layer.
+/// See: https://arxiv.org/abs/2503.10622
+///
+///  - **I**: The number of inputs/outputs this layer takes.
+///
+/// This results in `I*2 + 1` number of learnable parameters.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct DyT<const I: usize> {}
+
+impl<const I: usize, E: Float> Buildable<E> for DyT<I> {
+    type Built = (ScalarScale<E>, Activation<E>, Diag<E, I>, Bias1d<E, I>);
+    fn try_build(&self) -> Result<Self::Built, crate::Error> {
+        Ok((
+            ScalarScale::<E>::default(),
+            Activation::<E>::Tanh,
+            Diag::<E, I>::default(),
+            Bias1d::default(),
+        ))
     }
 }
 

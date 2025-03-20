@@ -23,10 +23,10 @@ fn vis_as_video() {
 
     let network = (
         (layers::Linear::<20, 30> {}, layers::Swish::<30> {}),
+        layers::DyT::<30> {},
         (layers::Linear::<30, 15> {}, layers::SiLU),
         (layers::Linear::<15, 10> {}, layers::SiLU),
-        layers::Linear::<10, 10> {},
-        layers::Softmax::default(),
+        (layers::Linear::<10, 10> {}, layers::Softmax::default()),
     );
 
     let mut nn = Buildable::<f32>::build(&network);

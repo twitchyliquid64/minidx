@@ -21,3 +21,8 @@ pub use conv1d::{Conv1d, Conv1dKernel};
 
 mod lr_modifier;
 pub use lr_modifier::LR;
+
+mod diag;
+pub use diag::Diag;
+mod scalar_scale;
+pub use scalar_scale::ScalarScale;

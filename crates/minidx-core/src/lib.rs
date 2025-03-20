@@ -559,4 +559,55 @@ mod tests {
         assert_eq!(network.forward(&[0.0, 1.0]).unwrap(), [1.0]);
         assert_eq!(network.forward(&[0.0, 0.0]).unwrap(), [0.0]);
     }
+
+    #[test]
+    fn test_scalar_scale_layer() {
+        let mut network = (layers::ScalarScale::<f32>::default(),);
+        let mut rng = SmallRng::seed_from_u64(95334578);
+        network.rand_params(&mut rng, 0.5).unwrap();
+
+        let func = |inp: [f32; 2]| [inp[0] / 5.0, inp[1] / 5.0];
+
+        let mut params = TrainParams::with_lr(0.25);
+        for _i in 0..100 {
+            let input = [rng.random_range(-2.0..2.0), rng.random_range(-2.0..2.0)];
+            let target = func(input);
+            train_step(
+                &mut params,
+                &mut network,
+                |got: &[f32; 2], want| (got.mse(want), got.mse_input_grads(want)),
+                input,
+                target,
+            );
+        }
+
+        let w = &network.0.scale;
+        assert!((w - 0.2).abs() < 0.1, "got {}, want 0.2", w);
+    }
+
+    #[test]
+    fn test_diag_layer() {
+        let mut network = (layers::Diag::<f32, 2>::default(),);
+        let mut rng = SmallRng::seed_from_u64(95334578);
+        network.rand_params(&mut rng, 0.5).unwrap();
+
+        let func = |inp: [f32; 2]| [inp[0] / 3.6, inp[1] * -1.8];
+
+        let mut params = TrainParams::with_lr(5.0e-2);
+        for _i in 0..500 {
+            let input = [rng.random_range(-2.0..2.0), rng.random_range(-2.0..2.0)];
+            let target = func(input);
+            train_step(
+                &mut params,
+                &mut network,
+                |got: &[f32; 2], want| (got.mse(want), got.mse_input_grads(want)),
+                input,
+                target,
+            );
+        }
+
+        let w = &network.0.weights;
+        assert!((w[0] - 0.277).abs() < 0.1, "got {}, want 0.277", w[0]);
+        assert!((w[1] - -1.8).abs() < 0.1, "got {}, want 1.8", w[1]);
+    }
 }
