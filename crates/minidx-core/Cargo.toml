@@ -1,8 +1,10 @@
 [package]
 edition = "2021"
 name = "minidx-core"
-version = "0.1.5"
+version = "0.1.6"
 license = "MIT OR Apache-2.0"
+
+rust-version = "1.78"
 
 description = "Core crate for minidx, a simple + compile-time neural-network library."
 homepage = "https://github.com/twitchyliquid64/minidx"
@@ -16,7 +18,7 @@ keywords = [
 ]
 
 [features]
-default = ["gemm"]
+default = ["gemm", "serde"]
 gemm = ["dep:gemm"]
 serde = ["dep:serde"]
 
@@ -28,3 +30,6 @@ rayon.workspace = true
 
 gemm = {version = "^0.18", optional = true}
 serde = {workspace = true, optional = true}
+
+# workaround for 1.9.2 needing 1.84
+bytemuck_derive=">=1.8.1, <1.9.0"

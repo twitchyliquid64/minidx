@@ -8,8 +8,8 @@ rand = { version = "^0.9.0", default-features = false, features = ["std_rng", "s
 rand_distr = "^0.5"
 rayon = {version = "^1"}
 
-minidx-core = { version = "0.1.5", path = "crates/minidx-core"}
-minidx-vis = { version = "0.1.5", path = "crates/minidx-vis"}
+minidx-core = { version = "0.1.6", path = "crates/minidx-core"}
+minidx-vis = { version = "0.1.6", path = "crates/minidx-vis"}
 
 raqote = { version = "^0.8", features = ["png"], default-features = false }
 rust-fontconfig = { version = "^0.1" }
