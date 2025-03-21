@@ -12,6 +12,8 @@ pub struct TrainInfo {
     pub l1_reg: f32,
     /// The L2 regularization applied each update step.
     pub l2_reg: f32,
+    /// The maximum magnitude of any update to any parameter.
+    pub grad_clip: Option<f32>,
     /// The 0-indexed count of update steps.
     pub step: usize,
 }
@@ -40,9 +42,9 @@ pub struct TrainParams {
     /// how to specify a fixed vs variable learning rate.
     pub lr: Decay,
     /// The L1 regularization to apply each update step.
-    pub l1_reg: f32,
+    pub l1_reg: Option<Decay>,
     /// The L2 regularization to apply each update step.
-    pub l2_reg: f32,
+    pub l2_reg: Option<Decay>,
 
     /// If set, the number of update steps for which the learning rate
     /// is ramped up at the beginning.
@@ -58,8 +60,8 @@ impl Default for TrainParams {
     fn default() -> Self {
         Self {
             lr: Decay::None(1.0e-6),
-            l1_reg: 0.0,
-            l2_reg: 0.0,
+            l1_reg: None,
+            l2_reg: None,
             soft_start_epochs: None,
             grad_clip: None,
             step: 0,
@@ -71,8 +73,17 @@ impl Into<TrainInfo> for &TrainParams {
     fn into(self) -> TrainInfo {
         TrainInfo {
             lr: self.current_lr(),
-            l1_reg: self.l1_reg,
-            l2_reg: self.l2_reg,
+            l1_reg: self
+                .l1_reg
+                .as_ref()
+                .map(|d| d.at_timestep(self.step))
+                .unwrap_or(0.0),
+            l2_reg: self
+                .l2_reg
+                .as_ref()
+                .map(|d| d.at_timestep(self.step))
+                .unwrap_or(0.0),
+            grad_clip: self.grad_clip,
             step: self.step,
         }
     }
@@ -91,7 +102,7 @@ impl TrainParams {
     ///
     /// This method can be chained in a builder-pattern kind of way.
     pub fn and_l1(mut self, l1: f32) -> Self {
-        self.l1_reg = l1;
+        self.l1_reg = Some(Decay::None(l1));
         self
     }
 
@@ -99,7 +110,7 @@ impl TrainParams {
     ///
     /// This method can be chained in a builder-pattern kind of way.
     pub fn and_l2(mut self, l2: f32) -> Self {
-        self.l2_reg = l2;
+        self.l2_reg = Some(Decay::None(l2));
         self
     }
 
@@ -194,15 +205,18 @@ impl GradApplyer for TrainParams {
         gradient_updates: G,
         weights: &mut G,
     ) -> Result<(), crate::Error> {
+        let l1 = self.l1_reg.as_ref().map(|d| d.at_timestep(self.step));
+        let l2 = self.l2_reg.as_ref().map(|d| d.at_timestep(self.step));
+
         weights
             .grad_iter_mut()
             .zip(gradient_updates.into_grads())
             .for_each(|(w, u)| {
-                let reg_penalty = G::Concrete::from_f32(if self.l1_reg != 0.0 {
+                let reg_penalty = G::Concrete::from_f32(if let Some(l1) = l1 {
                     if *w > G::Concrete::default() {
-                        self.l1_reg
+                        l1
                     } else if *w < G::Concrete::default() {
-                        -self.l1_reg
+                        -l1
                     } else {
                         0.0
                     }
@@ -210,9 +224,9 @@ impl GradApplyer for TrainParams {
                     0.0
                 })
                 .unwrap()
-                    + if self.l2_reg != 0.0 {
+                    + if let Some(l2) = l2 {
                         (*w) * (G::Concrete::ONE + G::Concrete::ONE)
-                            * G::Concrete::from_f32(self.l2_reg).unwrap()
+                            * G::Concrete::from_f32(l2).unwrap()
                     } else {
                         G::Concrete::default()
                     };
