@@ -211,27 +211,31 @@ impl GradApplyer for TrainParams {
         let l2 = self.l2_reg.as_ref().map(|d| d.at_timestep(self.step));
 
         weights
-            .grad_iter_mut()
+            .grad_iter_mut_with_class()
             .zip(gradient_updates.into_grads())
-            .for_each(|(w, u)| {
-                let reg_penalty = G::Concrete::from_f32(if let Some(l1) = l1 {
-                    if *w > G::Concrete::default() {
-                        l1
-                    } else if *w < G::Concrete::default() {
-                        -l1
+            .for_each(|((w, c), u)| {
+                let reg_penalty = if c.should_regularize() {
+                    G::Concrete::from_f32(if let Some(l1) = l1 {
+                        if *w > G::Concrete::default() {
+                            l1
+                        } else if *w < G::Concrete::default() {
+                            -l1
+                        } else {
+                            0.0
+                        }
                     } else {
                         0.0
-                    }
+                    })
+                    .unwrap()
+                        + if let Some(l2) = l2 {
+                            (*w) * (G::Concrete::ONE + G::Concrete::ONE)
+                                * G::Concrete::from_f32(l2).unwrap()
+                        } else {
+                            G::Concrete::default()
+                        }
                 } else {
-                    0.0
-                })
-                .unwrap()
-                    + if let Some(l2) = l2 {
-                        (*w) * (G::Concrete::ONE + G::Concrete::ONE)
-                            * G::Concrete::from_f32(l2).unwrap()
-                    } else {
-                        G::Concrete::default()
-                    };
+                    G::Concrete::default()
+                };
 
                 *w += u - reg_penalty;
             });

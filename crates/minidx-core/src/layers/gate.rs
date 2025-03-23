@@ -51,9 +51,9 @@ impl<
     pub fn connection_params(&self) -> (&[[E; I]; O], &[E; O], &[[E; I]; O], &[E; O]) {
         (
             &self.gate_connections.weights,
-            &self.gate_bias.bias,
+            self.gate_bias.bias.raw_grads_ref(),
             &self.sig_connections.weights,
-            &self.sig_bias.bias,
+            self.sig_bias.bias.raw_grads_ref(),
         )
     }
 }
@@ -319,9 +319,9 @@ mod tests {
     fn test_backward_simple() {
         let mut g = GLU::<f32, 2, 1>::default();
         g.gate_connections.weights = [[2.0, 1.0]];
-        g.gate_bias.bias[0] = -2.0;
+        g.gate_bias.bias.raw_grads_mut()[0] = -2.0;
         g.sig_connections.weights = [[1.0, -1.0]];
-        g.sig_bias.bias[0] = 1.0;
+        g.sig_bias.bias.raw_grads_mut()[0] = 1.0;
 
         let (out, trace) = g.traced_forward([1.0, 2.0]).unwrap();
         assert_eq!(out, [0.0]);
@@ -332,7 +332,14 @@ mod tests {
         // assume MSE loss, want=1 so loss=0.5 and dL/dY = -1.
         let (_out_grads, grads) = g.backprop(&trace, [-1.0]);
         assert_eq!(out, [0.0]); // no gradient backwards as the gate was inactive
-        assert_eq!(grads.0, ([[0.0, 0.0]], [0.0], ())); // no gradient for gate as sig was inactive
-        assert_eq!(grads.1, ([[-2.0, -4.0]], [-2.0])); // activation was non-zero so gradients for gate
+
+        assert_eq!(
+            (grads.0 .0, grads.0 .1.raw_grads(), grads.0 .2),
+            ([[0.0, 0.0]], [0.0], ())
+        ); // no gradient for gate as sig was inactive
+        assert_eq!(
+            (grads.1 .0, grads.1 .1.raw_grads()),
+            ([[-2.0, -4.0]], [-2.0])
+        ); // activation was non-zero so gradients for gate
     }
 }

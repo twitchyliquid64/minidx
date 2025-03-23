@@ -12,7 +12,7 @@ pub mod misc;
 mod iterate;
 // pub(crate) use iterate::*;
 
-mod gradients;
+pub mod gradients;
 pub use gradients::Gradients;
 mod modules;
 pub use modules::*;
@@ -78,8 +78,6 @@ where
     LV: std::ops::Mul<f32, Output = f32>,
     <Network as modules::BackpropModule<Input>>::SelfGrads: Gradients,
 {
-    let grads: Option<(Network::SelfGrads, LV)> = None;
-
     let (mut grads, lv) = (0..batch_size).into_iter().fold(
         (Network::SelfGrads::empty(), LV::default()),
         |(mut accumulated_grads, mut accumulated_lv), _i| {

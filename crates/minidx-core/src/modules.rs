@@ -327,7 +327,7 @@ mod tests {
         );
         network.0.weights[0][0] = 2.5;
         network.0.weights[0][1] = 0.5;
-        network.2.bias.iter_mut().for_each(|x| *x += 1.0);
+        network.2.bias.grad_iter_mut().for_each(|x| *x += 1.0);
 
         let output = network.forward(&[1.0, 2.0]);
         assert_eq!(output, Ok([3.5, 1.5, 1.0]));
@@ -389,7 +389,7 @@ mod tests {
         for x in network.0.weights.iter().flatten() {
             assert!(*x != 0.0);
         }
-        for x in network.1.bias.iter() {
+        for x in network.1.bias.grad_iter() {
             assert!(*x != 0.0);
         }
     }
@@ -414,10 +414,10 @@ mod tests {
         let (_, trace) = network.traced_forward([1.0, 2.0]).unwrap();
         let (grad_wrt_input, gradient_updates) = network.backprop(&trace, [0.0, 0.0]);
         assert_eq!(grad_wrt_input, [0.0, 0.0]);
-        assert_eq!(gradient_updates, [0.0, 0.0]);
+        assert_eq!(gradient_updates.raw_grads(), [0.0, 0.0]);
 
         let (_, gradient_updates) = network.backprop(&trace, [2.0, 7.0]);
-        assert_eq!(gradient_updates, [2.0, 7.0]);
+        assert_eq!(gradient_updates.raw_grads(), [2.0, 7.0]);
     }
 
     #[test]

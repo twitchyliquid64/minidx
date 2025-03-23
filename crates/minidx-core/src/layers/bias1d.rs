@@ -1,22 +1,23 @@
+use crate::gradients::{ClassBias, ClassWrapper, Gradients};
 use crate::Dtype;
 
 /// A learnable bias on each element.
 #[derive(Clone, Debug)]
 pub struct Bias1d<E: Dtype, const I: usize> {
-    pub(crate) bias: [E; I],
+    pub(crate) bias: ClassWrapper<[E; I], ClassBias>,
 }
 
 impl<E: Dtype, const I: usize> Default for Bias1d<E, I> {
     fn default() -> Self {
         Self {
-            bias: [E::default(); I],
+            bias: ClassWrapper::<[E; I], ClassBias>::wrap([E::default(); I]),
         }
     }
 }
 
 impl<E: Dtype, const I: usize> Bias1d<E, I> {
     fn forward(&self, input: &[E; I]) -> [E; I] {
-        let mut out: [E; I] = self.bias.clone();
+        let mut out: [E; I] = self.bias.raw_grads_ref().clone();
         for (o, i) in out.iter_mut().zip(input.iter()) {
             *o += *i;
         }
@@ -35,10 +36,13 @@ impl<E: Dtype, const I: usize> crate::Module<[E; I]> for Bias1d<E, I> {
 }
 
 impl<E: Dtype, const I: usize> crate::RevModule<[E; I]> for Bias1d<E, I> {
-    type SelfGrads = [E; I];
+    type SelfGrads = ClassWrapper<[E; I], ClassBias>;
 
     fn reverse(&self, _inputs: &[E; I], grads_wrt_output: &[E; I]) -> ([E; I], Self::SelfGrads) {
-        (grads_wrt_output.clone(), grads_wrt_output.clone())
+        (
+            grads_wrt_output.clone(),
+            Self::SelfGrads::wrap(grads_wrt_output.clone()),
+        )
     }
 
     fn apply(
@@ -61,7 +65,7 @@ impl<E: Dtype, const I: usize> crate::ResetParams for Bias1d<E, I> {
         let stddev = 1.0 / ((I * I) as f32 * 64.0).sqrt();
         let normal = rand_distr::Normal::new(0.0, stddev).unwrap();
 
-        self.bias.iter_mut().for_each(|b| {
+        self.bias.grad_iter_mut().for_each(|b| {
             let s: f32 = rng.sample::<f32, _>(normal) * scale;
             *b = E::from_f32(s).unwrap();
         });
@@ -74,7 +78,7 @@ impl<E: Dtype, const I: usize> crate::VisualizableUnit for Bias1d<E, I> {
     type Params = [[E; I]; 1];
     fn params(&self) -> &Self::Params {
         // SAFETY: An array of N is exactly the same as a unary array of the array of N
-        unsafe { std::mem::transmute(&self.bias) }
+        unsafe { std::mem::transmute(self.bias.raw_grads_ref()) }
     }
 }
 
@@ -86,7 +90,7 @@ impl<E: Dtype, const I: usize> crate::LoadableModule for Bias1d<E, I> {
     ) -> Result<(), crate::LoadSaveError> {
         dict.insert(
             path,
-            self.bias.iter().map(|f| f.to_f64().unwrap()).collect(),
+            self.bias.grad_iter().map(|f| f.to_f64().unwrap()).collect(),
         );
         Ok(())
     }
@@ -111,7 +115,7 @@ impl<E: Dtype, const I: usize> crate::LoadableModule for Bias1d<E, I> {
                 .into(),
             });
         }
-        for (a, b) in self.bias.iter_mut().zip(params.into_iter()) {
+        for (a, b) in self.bias.grad_iter_mut().zip(params.into_iter()) {
             *a = E::from_f64(*b).unwrap();
         }
         Ok(())
@@ -130,7 +134,9 @@ mod tests {
 
     #[test]
     fn test_2() {
-        let layer = Bias1d::<f32, 2> { bias: [1.5, 3.2] };
+        let layer = Bias1d::<f32, 2> {
+            bias: ClassWrapper::<[f32; 2], ClassBias>::wrap([1.5, 3.2]),
+        };
         assert_eq!(layer.forward(&[1.0, 3.0]), [2.5, 6.2],);
     }
 }

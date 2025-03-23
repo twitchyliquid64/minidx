@@ -1,6 +1,29 @@
 use crate::{Dtype, Unit};
 use num_traits::FromPrimitive;
 
+/// What kind of parameter the gradient represents.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum GradClass {
+    /// A gradient relating to the weight of a connection between two neurons.
+    Connective,
+    /// A gradient relating to some bias applied to a neuron.
+    Bias,
+    /// A gradient which parameterizes an activation function.
+    Activation,
+    /// Other kinds of parameter gradients.
+    Other,
+}
+
+impl GradClass {
+    pub fn should_regularize(&self) -> bool {
+        use GradClass::*;
+        match self {
+            Connective => true,
+            _ => false,
+        }
+    }
+}
+
 /// The set of gradients that describe some movement in parameters of a module.
 pub trait Gradients: Clone + std::fmt::Debug {
     type Concrete: Dtype;
@@ -13,6 +36,14 @@ pub trait Gradients: Clone + std::fmt::Debug {
 
     /// Consumes the object, returning an iterator of each parameter gradient.
     fn into_grads(self) -> impl Iterator<Item = Self::Concrete>;
+
+    /// Returns a mutable iterator over each parameter gradient, yielding
+    /// both the parameter gradient and its [GradClass].
+    fn grad_iter_mut_with_class(
+        &mut self,
+    ) -> impl Iterator<Item = (&mut Self::Concrete, GradClass)> {
+        self.grad_iter_mut().map(|g| (g, GradClass::Other))
+    }
 
     /// Merges the values from the given gradient into the current one, based on the given weight.
     ///
@@ -128,6 +159,12 @@ impl<E: Dtype, const L1: usize, const L2: usize> Gradients for [[E; L2]; L1] {
         <&mut [[E; L2]; L1]>::into_iter(self).flatten()
     }
 
+    fn grad_iter_mut_with_class(
+        &mut self,
+    ) -> impl Iterator<Item = (&mut Self::Concrete, GradClass)> {
+        self.grad_iter_mut().map(|g| (g, GradClass::Connective))
+    }
+
     fn into_grads(self) -> impl Iterator<Item = Self::Concrete> {
         std::iter::IntoIterator::into_iter(self)
             .map(|a| std::iter::IntoIterator::into_iter(a))
@@ -161,6 +198,13 @@ macro_rules! tuple_impls {
                 x
             }
 
+            #[inline(always)]
+            fn grad_iter_mut_with_class(&mut self) -> impl Iterator<Item = (&mut Self::Concrete, GradClass)> {
+                let x = self.0.grad_iter_mut_with_class();
+                $(let x = x.chain(self.$idx.grad_iter_mut_with_class());)*
+                x
+            }
+
 		    fn into_grads(self) -> impl Iterator<Item = Self::Concrete> {
 		        self.0.into_grads()
 		        $(.chain(self.$idx.into_grads()))*
@@ -182,6 +226,93 @@ tuple_impls!([M1, M2, M3, M4] [1, 2, 3], M4, [M3, M2, M1]);
 tuple_impls!([M1, M2, M3, M4, M5] [1, 2, 3, 4], M5, [M4, M3, M2, M1]);
 tuple_impls!([M1, M2, M3, M4, M5, M6] [1, 2, 3, 4, 5], M6, [M5, M4, M3, M2, M1]);
 tuple_impls!([M1, M2, M3, M4, M5, M6, M7] [1, 2, 3, 4, 5, 6], M7, [M6, M5, M4, M3, M2, M1]);
+
+/// Marker for gradients which represent bias parameters.
+#[derive(Clone, Debug)]
+pub struct ClassBias;
+
+impl ClassMarker for ClassBias {
+    fn class() -> GradClass {
+        GradClass::Bias
+    }
+    fn new() -> Self {
+        ClassBias
+    }
+}
+
+/// Marker for gradients which represent activation parameters.
+#[derive(Clone, Debug)]
+pub struct ClassActivation;
+
+impl ClassMarker for ClassActivation {
+    fn class() -> GradClass {
+        GradClass::Activation
+    }
+    fn new() -> Self {
+        ClassActivation
+    }
+}
+
+pub(crate) trait ClassMarker: Clone + std::fmt::Debug {
+    fn new() -> Self;
+    fn class() -> GradClass;
+}
+
+/// A wrapper type for gradients which overrides the class reported via [Gradients::grad_iter_mut_with_class].
+#[derive(Clone, Debug)]
+pub struct ClassWrapper<G: Gradients, M: ClassMarker> {
+    g: G,
+    m: M,
+}
+
+impl<G: Gradients, M: ClassMarker> ClassWrapper<G, M> {
+    #[inline(always)]
+    pub(crate) fn wrap(g: G) -> Self {
+        Self { g, m: M::new() }
+    }
+    #[inline(always)]
+    pub(crate) fn raw_grads(self) -> G {
+        self.g
+    }
+    #[inline(always)]
+    pub(crate) fn raw_grads_ref(&self) -> &G {
+        &self.g
+    }
+    #[inline(always)]
+    pub(crate) fn raw_grads_mut(&mut self) -> &mut G {
+        &mut self.g
+    }
+}
+
+impl<G: Gradients, M: ClassMarker> Gradients for ClassWrapper<G, M> {
+    type Concrete = G::Concrete;
+
+    fn grad_iter(&self) -> impl Iterator<Item = &Self::Concrete> {
+        self.g.grad_iter()
+    }
+
+    fn grad_iter_mut(&mut self) -> impl Iterator<Item = &mut Self::Concrete> {
+        self.g.grad_iter_mut()
+    }
+
+    #[inline(always)]
+    fn grad_iter_mut_with_class(
+        &mut self,
+    ) -> impl Iterator<Item = (&mut Self::Concrete, GradClass)> {
+        self.grad_iter_mut().map(|g| (g, M::class()))
+    }
+
+    fn into_grads(self) -> impl Iterator<Item = Self::Concrete> {
+        self.g.into_grads()
+    }
+
+    fn empty() -> Self {
+        Self {
+            g: G::empty(),
+            m: M::new(),
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -249,5 +380,32 @@ mod tests {
         let mut grads = [1.0f32; 2];
         grads.merge([2.0f32; 2], 1.0);
         grads.grad_iter().for_each(|x| assert!(*x == 2.0));
+    }
+
+    #[test]
+    fn test_grad_iter_mut_with_class() {
+        // Default for [E; N] is Other
+        let mut grads = [0.0f32; 10];
+        grads
+            .grad_iter_mut_with_class()
+            .for_each(|(_, c)| assert!(c == GradClass::Other));
+        let mut grads = ([0.0f32; 10],);
+        grads
+            .grad_iter_mut_with_class()
+            .for_each(|(_, c)| assert!(c == GradClass::Other));
+        // Default for [[E; N1]; N2] is Connective
+        let mut grads = [[0.0f32; 10]; 10];
+        grads
+            .grad_iter_mut_with_class()
+            .for_each(|(_, c)| assert!(c == GradClass::Connective));
+
+        // Test ClassWrapper
+        let mut grads = (ClassWrapper::<[f32; 10], ClassBias> {
+            g: [0.0f32; 10],
+            m: ClassBias,
+        },);
+        grads
+            .grad_iter_mut_with_class()
+            .for_each(|(_, c)| assert!(c == GradClass::Bias));
     }
 }

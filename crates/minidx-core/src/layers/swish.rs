@@ -1,15 +1,18 @@
 use super::sigmoid;
+use crate::gradients::{ClassActivation, ClassWrapper, Gradients};
 use crate::Float;
 
 /// The swish activation function with learnable beta.
 #[derive(Clone, Debug)]
 pub struct Swish<E: Float, const I: usize> {
-    pub(crate) beta: [E; I],
+    pub(crate) beta: ClassWrapper<[E; I], ClassActivation>,
 }
 
 impl<E: Float, const I: usize> Default for Swish<E, I> {
     fn default() -> Self {
-        Self { beta: [E::ONE; I] }
+        Self {
+            beta: ClassWrapper::<[E; I], ClassActivation>::wrap([E::ONE; I]),
+        }
     }
 }
 
@@ -17,7 +20,7 @@ impl<E: Float, const I: usize> Swish<E, I> {
     #[inline]
     fn forward(&self, input: &[E; I]) -> [E; I] {
         let mut out: [E; I] = [E::default(); I];
-        for ((o, x), b) in out.iter_mut().zip(input.iter()).zip(self.beta.iter()) {
+        for ((o, x), b) in out.iter_mut().zip(input.iter()).zip(self.beta.grad_iter()) {
             *o = *x * sigmoid(*b * *x);
         }
         out
@@ -26,7 +29,7 @@ impl<E: Float, const I: usize> Swish<E, I> {
     #[inline]
     fn gradients_wrt_input(&self, input: &[E; I]) -> [E; I] {
         let mut out: [E; I] = [E::default(); I];
-        for ((o, x), b) in out.iter_mut().zip(input.iter()).zip(self.beta.iter()) {
+        for ((o, x), b) in out.iter_mut().zip(input.iter()).zip(self.beta.grad_iter()) {
             let act = sigmoid(*b * *x);
             *o = act * (E::ONE + (*b * *x) * E::ONE.sub(act));
         }
@@ -39,7 +42,7 @@ impl<E: Float, const I: usize> Swish<E, I> {
         for (((o, x), b), g) in out
             .iter_mut()
             .zip(input.iter())
-            .zip(self.beta.iter())
+            .zip(self.beta.grad_iter())
             .zip(output_gradients.iter())
         {
             let act = sigmoid(*b * *x);
@@ -60,7 +63,7 @@ impl<E: Float, const I: usize> crate::Module<[E; I]> for Swish<E, I> {
 }
 
 impl<E: Float, const I: usize> crate::RevModule<[E; I]> for Swish<E, I> {
-    type SelfGrads = [E; I];
+    type SelfGrads = ClassWrapper<[E; I], ClassActivation>;
 
     fn reverse(&self, inputs: &[E; I], grads_wrt_output: &[E; I]) -> ([E; I], Self::SelfGrads) {
         let mut output_grads = self.gradients_wrt_input(inputs);
@@ -71,7 +74,7 @@ impl<E: Float, const I: usize> crate::RevModule<[E; I]> for Swish<E, I> {
 
         (
             output_grads,
-            self.gradients_wrt_beta(inputs, grads_wrt_output),
+            Self::SelfGrads::wrap(self.gradients_wrt_beta(inputs, grads_wrt_output)),
         )
     }
 
@@ -92,7 +95,7 @@ impl<E: Float, const I: usize> crate::LoadableModule for Swish<E, I> {
     ) -> Result<(), crate::LoadSaveError> {
         dict.insert(
             path,
-            self.beta.iter().map(|f| f.to_f64().unwrap()).collect(),
+            self.beta.grad_iter().map(|f| f.to_f64().unwrap()).collect(),
         );
         Ok(())
     }
@@ -117,7 +120,7 @@ impl<E: Float, const I: usize> crate::LoadableModule for Swish<E, I> {
                 .into(),
             });
         }
-        for (a, b) in self.beta.iter_mut().zip(params.into_iter()) {
+        for (a, b) in self.beta.grad_iter_mut().zip(params.into_iter()) {
             *a = E::from_f64(*b).unwrap();
         }
         Ok(())
@@ -135,7 +138,7 @@ impl<E: Float, const I: usize> crate::ResetParams for Swish<E, I> {
         let stddev = 1.0 / ((I * I) as f32 * 8.0).sqrt();
         let normal = rand_distr::Normal::new(1.0, stddev).unwrap();
 
-        self.beta.iter_mut().for_each(|b| {
+        self.beta.grad_iter_mut().for_each(|b| {
             let s: f32 = rng.sample::<f32, _>(normal) * scale;
             *b = E::from_f32(s).unwrap();
         });
@@ -148,7 +151,7 @@ impl<E: Float, const I: usize> crate::VisualizableUnit for Swish<E, I> {
     type Params = [[E; I]; 1];
     fn params(&self) -> &Self::Params {
         // SAFETY: An array of N is exactly the same as a unary array of the array of N
-        unsafe { std::mem::transmute(&self.beta) }
+        unsafe { std::mem::transmute(self.beta.raw_grads_ref()) }
     }
 }
 
@@ -159,13 +162,13 @@ mod tests {
     #[test]
     fn test_default() {
         let layer = Swish::<f32, 2>::default();
-        assert_eq!(layer.beta, [1.0, 1.0],);
+        assert_eq!(layer.beta.raw_grads(), [1.0, 1.0],);
     }
 
     #[test]
     fn test_forward() {
         let mut layer = Swish::<f32, 4>::default();
-        layer.beta[2] = 355.0;
+        layer.beta.raw_grads_mut()[2] = 355.0;
         let out = layer.forward(&[10.0, 0.0, 1.0, 1.0]);
         assert!(out[0] > 9.99 && out[0] < 10.0);
         assert_eq!(out[1], 0.0);
@@ -179,7 +182,7 @@ mod tests {
         let out = layer.gradients_wrt_input(&[2.0]);
         assert!(out[0] > 1.08 && out[0] < 1.091);
 
-        layer.beta[0] = 10.0;
+        layer.beta.raw_grads_mut()[0] = 10.0;
         let out = layer.gradients_wrt_input(&[2.0]);
         assert!(out[0] > 0.9999 && out[0] < 1.0001);
     }
@@ -190,7 +193,7 @@ mod tests {
         let out = layer.gradients_wrt_beta(&[2.0], &[1.0]);
         assert!(out[0] > 0.409 && out[0] < 0.421);
 
-        layer.beta[0] = 10.0;
+        layer.beta.raw_grads_mut()[0] = 10.0;
         let out = layer.gradients_wrt_beta(&[-2.0], &[1.0]);
         assert!(out[0] > 8.0e-9 && out[0] < 8.26e-9);
     }
