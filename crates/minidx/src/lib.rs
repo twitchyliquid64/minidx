@@ -91,7 +91,7 @@
 //! Everything is fairly self-explanatory except for the closure you need to pass for your loss function.
 //! That function takes both the output of the network as well as the correct output of the network, and
 //! needs to return the loss with respect to the output as well as the gradient of the loss with respect
-//! to the loss function. The [minidx::prelude::loss] module contains implemented loss functions and
+//! to the loss function. The [prelude::loss] module contains implemented loss functions and
 //! corresponding methods to compute their gradients.
 //!
 //! Its also worth noting that there are batch and threaded-batch variants of [train_step], namely [train_batch]

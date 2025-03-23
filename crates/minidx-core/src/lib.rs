@@ -53,6 +53,7 @@ pub fn train_step<
     // println!("updates: {:?}\n", gradient_updates);
 
     network.update(ga, gradient_updates).expect("update failed");
+    ga.advance_step();
 }
 
 /// Does a training minibatch, updating a network based on averaged gradients from
@@ -100,6 +101,7 @@ where
 
     let gradient_updates = ga.adjust(grads, lv);
     network.update(ga, gradient_updates).expect("update failed");
+    ga.advance_step();
     lv
 }
 
@@ -151,6 +153,7 @@ where
 
     let gradient_updates = ga.adjust(grads, lv);
     network.update(ga, gradient_updates).expect("update failed");
+    ga.advance_step();
     lv
 }
 

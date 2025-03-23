@@ -3,6 +3,9 @@
 use minidx_core::Dtype;
 use std::ops::Range;
 
+pub mod idx;
+pub mod mnist;
+
 /// A supervised learning scenario that can be sampled and
 /// a network trained to predict.
 pub trait Problem {

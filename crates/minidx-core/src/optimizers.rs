@@ -32,6 +32,8 @@ pub trait GradApplyer {
         gradient_updates: G,
         weights: &mut G,
     ) -> Result<(), crate::Error>;
+
+    fn advance_step(&mut self);
 }
 
 /// Describes the basic set of parameters used in training. Implements
@@ -152,7 +154,7 @@ impl TrainParams {
         self
     }
 
-    fn current_lr(&self) -> f32 {
+    pub fn current_lr(&self) -> f32 {
         let lr = self.lr.at_timestep(self.step);
         match self.soft_start_epochs {
             Some(soft_start_epochs) => {
@@ -234,8 +236,11 @@ impl GradApplyer for TrainParams {
                 *w += u - reg_penalty;
             });
 
-        self.step += 1;
         Ok(())
+    }
+
+    fn advance_step(&mut self) {
+        self.step += 1;
     }
 }
 
@@ -317,6 +322,10 @@ impl<G: Gradients> GradApplyer for Momentum<G> {
     ) -> Result<(), crate::Error> {
         self.params.apply(gradient_updates, weights)
     }
+
+    fn advance_step(&mut self) {
+        self.params.advance_step();
+    }
 }
 
 enum RMSPropBase<G: Gradients> {
@@ -354,6 +363,13 @@ impl<G: Gradients> GradApplyer for RMSPropBase<G> {
         match self {
             NoMomentum(params) => params.apply(gradient_updates, weights),
             Momentum(m) => m.apply(gradient_updates, weights),
+        }
+    }
+
+    fn advance_step(&mut self) {
+        match self {
+            RMSPropBase::NoMomentum(p) => p.advance_step(),
+            RMSPropBase::Momentum(m) => m.advance_step(),
         }
     }
 }
@@ -438,5 +454,9 @@ where
         weights: &mut G2,
     ) -> Result<(), crate::Error> {
         self.base.apply(gradient_updates, weights)
+    }
+
+    fn advance_step(&mut self) {
+        self.base.advance_step();
     }
 }

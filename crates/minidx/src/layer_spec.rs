@@ -307,7 +307,7 @@ impl<
 }
 
 /// The 'Dynamic Tanh' normalization layer.
-/// See: https://arxiv.org/abs/2503.10622
+/// See: <https://arxiv.org/abs/2503.10622>
 ///
 ///  - **I**: The number of inputs/outputs this layer takes.
 ///
