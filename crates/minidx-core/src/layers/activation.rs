@@ -26,6 +26,8 @@ pub enum Activation<E: Float> {
     Tanh,
     /// [Leaky ReLu](https://en.wikipedia.org/wiki/Rectifier_(neural_networks)#Piecewise-linear_variants). `if t > 0 { t } else { a * t }`
     LeakyRelu(E),
+    /// [Softplus](https://en.wikipedia.org/wiki/Softplus). `ln(1 + e^x)`
+    Softplus,
 }
 
 impl<E: Float> Activation<E> {
@@ -45,6 +47,7 @@ impl<E: Float> Activation<E> {
                         *i
                     }
                 }
+                Activation::Softplus => (i.exp() + E::ONE).ln(),
             };
         }
         out
@@ -83,6 +86,7 @@ impl<E: Float> Activation<E> {
                         E::ONE
                     }
                 }
+                Activation::Softplus => sigmoid(*i),
             };
         }
         out
@@ -219,5 +223,17 @@ mod tests {
         assert_eq!(out[0], 10.0);
         assert_eq!(out[1], 0.0);
         assert_eq!(out[2], -0.001);
+    }
+
+    #[test]
+    fn test_softplus() {
+        let layer = Activation::Softplus;
+        let out = layer.forward(&[1.0]);
+        assert!(out[0] > 1.31);
+        assert!(out[0] < 1.33);
+
+        let back = layer.backward(&[1.0]);
+        assert!(back[0] > 0.72, "val is {}", back[0]);
+        assert!(back[0] < 0.74, "val is {}", back[0]);
     }
 }

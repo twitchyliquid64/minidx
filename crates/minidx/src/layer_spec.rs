@@ -327,6 +327,22 @@ impl<const I: usize, E: Float> Buildable<E> for DyT<I> {
     }
 }
 
+/// The Softplus activation function.
+///
+/// `Output = Ln(1 + e^Input)`
+///
+/// This layer produces the same number of outputs as given inputs, and there
+/// are no learnable parameters.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Softplus;
+
+impl<E: Dtype + Float> Buildable<E> for Softplus {
+    type Built = Activation<E>;
+    fn try_build(&self) -> Result<Self::Built, crate::Error> {
+        Ok(Activation::<E>::Softplus)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
