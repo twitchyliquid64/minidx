@@ -158,6 +158,50 @@ impl<E: Dtype + rand::distr::uniform::SampleUniform, RNG: rand::Rng> Problem
     }
 }
 
+/// For the problem of adding two numbers mod 16 together, with inputs and outputs
+/// represented with one-hot encodings.
+pub struct ModularAddition16<E: Dtype, RNG: rand::Rng> {
+    marker: std::marker::PhantomData<E>,
+    rng: RNG,
+}
+
+impl<E: Dtype + rand::distr::uniform::SampleUniform, RNG: rand::Rng> ModularAddition16<E, RNG> {
+    pub fn new(rng: RNG) -> Self {
+        Self {
+            marker: Default::default(),
+            rng,
+        }
+    }
+}
+
+impl<E: Dtype + rand::distr::uniform::SampleUniform, RNG: rand::Rng> Problem
+    for ModularAddition16<E, RNG>
+{
+    type Input = [E; 32];
+    type Output = [E; 16];
+
+    fn sample(&mut self) -> (Self::Input, Self::Output) {
+        use crate::OneHotEncoder;
+
+        let (lhs, rhs) = (
+            (self.rng.next_u32() % 16) as usize,
+            (self.rng.next_u32() % 16) as usize,
+        );
+        let output = (lhs + rhs) % 16;
+
+        let mut input = [E::default(); 32];
+        for (out, s) in input.iter_mut().zip(
+            OneHotEncoder::<16>::value(lhs)
+                .into_iter()
+                .chain(OneHotEncoder::<16>::value(rhs).into_iter()),
+        ) {
+            *out = s;
+        }
+
+        (input, OneHotEncoder::<16>::value(output))
+    }
+}
+
 /// For the problem of adding two numbers mod 32 together, with inputs and outputs
 /// represented with one-hot encodings.
 pub struct ModularAddition32<E: Dtype, RNG: rand::Rng> {

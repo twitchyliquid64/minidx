@@ -22,10 +22,18 @@ fn vis_as_video() {
         .unwrap();
 
     let network = (
-        (layers::Linear::<20, 20> {}, layers::SiLU),
-        (layers::Linear::<20, 18> {}, layers::Swish::<18> {}, layers::RMSNorm::<18> {}),
-        (layers::Linear::<18, 16> {}, layers::Swish::<16> {}, layers::RMSNorm::<16> {}),
-        (layers::Linear::<16, 10> {}, layers::Softmax::default()),
+        (layers::Linear::<32, 32> {}, layers::SiLU),
+        (
+            layers::Linear::<32, 25> {},
+            layers::Swish::<25> {},
+            layers::RMSNorm::<25> {},
+        ),
+        (
+            layers::Linear::<25, 22> {},
+            layers::Swish::<22> {},
+            layers::RMSNorm::<22> {},
+        ),
+        (layers::Linear::<22, 16> {}, layers::Softmax::default()),
     );
 
     let mut nn = Buildable::<f32>::build(&network);
@@ -33,8 +41,8 @@ fn vis_as_video() {
     let mut rng = SmallRng::seed_from_u64(94356213);
     nn.rand_params(&mut rng, 0.8).unwrap();
 
-    use minidx::problem::ModularAddition10;
-    let mut problem = ModularAddition10::new(rng);
+    use minidx::problem::ModularAddition16;
+    let mut problem = ModularAddition16::new(rng);
     let mut anim = anim::Recorder::mp4(
         "/tmp/test_vis_as_video.mp4",
         (1080, 720),
@@ -43,21 +51,21 @@ fn vis_as_video() {
 
     use minidx_core::loss::LogitLoss;
     let mut updater = nn.new_rmsprop_with_momentum(
-        TrainParams::with_lr(4.0e-3)
-            .and_l2(2.0e-6)
-            .and_soft_start(100)
-            .and_lr_cosine_decay(1.0e-3, 30000),
-        0.8,
-        0.95,
+        TrainParams::with_lr(3.0e-3)
+            .and_l2(1.5e-6)
+            .and_soft_start(500)
+            .and_lr_cosine_decay(2.0e-3, 60000),
+        0.7,
+        0.99,
     );
-    for i in 0..35000 {
+    for i in 0..65000 {
         let start = std::time::Instant::now();
         let batch_loss = train_batch_parallel(
             &mut updater,
             &mut nn,
             |got, want| (got.logit_bce(want), got.logit_bce_input_grads(want)),
             &mut || problem.sample(),
-            20,
+            32,
         );
         if i % 128 == 0 {
             let other_loss = problem.avg_loss(&mut nn, |got, want| got.logit_bce(want), 5);
