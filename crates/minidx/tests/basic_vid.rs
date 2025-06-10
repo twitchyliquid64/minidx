@@ -22,11 +22,10 @@ fn vis_as_video() {
         .unwrap();
 
     let network = (
-        (layers::Linear::<20, 30> {}, layers::Swish::<30> {}),
-        layers::DyT::<30> {},
-        (layers::Linear::<30, 15> {}, layers::SiLU),
-        (layers::Linear::<15, 10> {}, layers::SiLU),
-        (layers::Linear::<10, 10> {}, layers::Softmax::default()),
+        (layers::Linear::<20, 20> {}, layers::SiLU),
+        (layers::Linear::<20, 18> {}, layers::Swish::<18> {}, layers::RMSNorm::<18> {}),
+        (layers::Linear::<18, 16> {}, layers::Swish::<16> {}, layers::RMSNorm::<16> {}),
+        (layers::Linear::<16, 10> {}, layers::Softmax::default()),
     );
 
     let mut nn = Buildable::<f32>::build(&network);
@@ -42,26 +41,26 @@ fn vis_as_video() {
         ParamVisOpts::small(),
     );
 
-    use minidx_core::loss::DiffLoss;
+    use minidx_core::loss::LogitLoss;
     let mut updater = nn.new_rmsprop_with_momentum(
-        TrainParams::with_lr(3.0e-3)
+        TrainParams::with_lr(4.0e-3)
             .and_l2(2.0e-6)
-            .and_soft_start(500)
-            .and_lr_cosine_decay(1.5e-3, 420000),
+            .and_soft_start(100)
+            .and_lr_cosine_decay(1.0e-3, 30000),
         0.8,
         0.95,
     );
-    for i in 0..450000 {
+    for i in 0..35000 {
         let start = std::time::Instant::now();
         let batch_loss = train_batch_parallel(
             &mut updater,
             &mut nn,
-            |got, want| (got.mse(want), got.mse_input_grads(want)),
+            |got, want| (got.logit_bce(want), got.logit_bce_input_grads(want)),
             &mut || problem.sample(),
             20,
         );
-        if i % 523 == 0 {
-            let other_loss = problem.avg_loss(&mut nn, |got, want| got.mse(want), 5);
+        if i % 128 == 0 {
+            let other_loss = problem.avg_loss(&mut nn, |got, want| got.logit_bce(want), 5);
             anim.push(i as f32, (other_loss + batch_loss) / 2.0, nn.clone());
         }
 

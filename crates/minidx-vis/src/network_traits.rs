@@ -16,6 +16,7 @@ impl<E: Dtype> LayerMarker for minidx_core::layers::ScalarScale<E> {}
 impl<E: Float, const I: usize> LayerMarker for minidx_core::layers::Swish<E, I> {}
 impl LayerMarker for minidx_core::layers::Softmax {}
 impl<E: Dtype, const I: usize> LayerMarker for minidx_core::layers::Diag<E, I> {}
+impl<E: Float + minidx_core::matmul::MatMulImpl, const I: usize> LayerMarker for minidx_core::layers::RMSDiv<E, I> {}
 
 impl<
         E: Dtype,

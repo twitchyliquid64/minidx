@@ -25,8 +25,8 @@
 //!
 use crate::Buildable;
 use minidx_core::layers::{
-    Activation, Bias1d, Conv1d as Conv1dL, Dense as DenseL, Diag, ScalarScale, Softmax as SoftmaxL,
-    Swish as SwishL, GLU as GLUL, LR,
+    Activation, Bias1d, Conv1d as Conv1dL, Dense as DenseL, Diag, RMSDiv, ScalarScale,
+    Softmax as SoftmaxL, Swish as SwishL, GLU as GLUL, LR,
 };
 use minidx_core::matmul::MatMulImpl;
 use minidx_core::{Const, Dtype, Float};
@@ -324,6 +324,21 @@ impl<const I: usize, E: Float> Buildable<E> for DyT<I> {
             Diag::<E, I>::default(),
             Bias1d::default(),
         ))
+    }
+}
+
+/// The 'RMSNorm' normalization layer.
+///
+///  - **I**: The number of inputs/outputs this layer takes.
+///
+/// This results in `I` number of learnable parameters.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct RMSNorm<const I: usize> {}
+
+impl<const I: usize, E: Float + MatMulImpl> Buildable<E> for RMSNorm<I> {
+    type Built = (RMSDiv<E, I>, Diag<E, I>);
+    fn try_build(&self) -> Result<Self::Built, crate::Error> {
+        Ok((RMSDiv::<E, I>::default(), Diag::<E, I>::default()))
     }
 }
 

@@ -26,3 +26,6 @@ mod diag;
 pub use diag::Diag;
 mod scalar_scale;
 pub use scalar_scale::ScalarScale;
+
+mod rmsdiv;
+pub use rmsdiv::RMSDiv;
