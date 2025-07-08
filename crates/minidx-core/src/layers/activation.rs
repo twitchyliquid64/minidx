@@ -28,6 +28,14 @@ pub enum Activation<E: Float> {
     LeakyRelu(E),
     /// [Softplus](https://en.wikipedia.org/wiki/Softplus). `ln(1 + e^x)`
     Softplus,
+    /// Sine function.
+    ///
+    /// The derivative is `cos(t)`.
+    Sine,
+    /// Cosine function.
+    ///
+    /// The derivative is `-sin(t)`.
+    Cosine,
 }
 
 impl<E: Float> Activation<E> {
@@ -48,6 +56,8 @@ impl<E: Float> Activation<E> {
                     }
                 }
                 Activation::Softplus => (i.exp() + E::ONE).ln(),
+                Activation::Sine => i.sin(),
+                Activation::Cosine => i.cos(),
             };
         }
         out
@@ -87,6 +97,8 @@ impl<E: Float> Activation<E> {
                     }
                 }
                 Activation::Softplus => sigmoid(*i),
+                Activation::Sine => (*i).cos(),
+                Activation::Cosine => -(*i).sin(),
             };
         }
         out

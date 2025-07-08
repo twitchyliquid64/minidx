@@ -358,6 +358,38 @@ impl<E: Dtype + Float> Buildable<E> for Softplus {
     }
 }
 
+/// A sinusoidal activation function.
+///
+/// `Output = Sin(Input)`
+///
+/// This layer produces the same number of outputs as given inputs, and there
+/// are no learnable parameters.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Sine;
+
+impl<E: Dtype + Float> Buildable<E> for Sine {
+    type Built = Activation<E>;
+    fn try_build(&self) -> Result<Self::Built, crate::Error> {
+        Ok(Activation::<E>::Sine)
+    }
+}
+
+/// A cosine activation function.
+///
+/// `Output = Cos(Input)`
+///
+/// This layer produces the same number of outputs as given inputs, and there
+/// are no learnable parameters.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Cosine;
+
+impl<E: Dtype + Float> Buildable<E> for Cosine {
+    type Built = Activation<E>;
+    fn try_build(&self) -> Result<Self::Built, crate::Error> {
+        Ok(Activation::<E>::Cosine)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

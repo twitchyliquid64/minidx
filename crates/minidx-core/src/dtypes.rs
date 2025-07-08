@@ -120,6 +120,8 @@ pub trait Float: Dtype + std::ops::Neg<Output = Self> {
     fn tanh(self) -> Self;
     fn min(self, other: Self) -> Self;
     fn max(self, other: Self) -> Self;
+    fn sin(self) -> Self;
+    fn cos(self) -> Self;
 }
 
 impl Float for f32 {
@@ -154,6 +156,14 @@ impl Float for f32 {
     fn max(self, other: Self) -> Self {
         f32::max(self, other)
     }
+    #[inline(always)]
+    fn sin(self) -> Self {
+        f32::sin(self)
+    }
+    #[inline(always)]
+    fn cos(self) -> Self {
+        f32::cos(self)
+    }
 }
 impl Float for f64 {
     const SMOL: f64 = 1.0e-20;
@@ -186,5 +196,13 @@ impl Float for f64 {
     #[inline(always)]
     fn max(self, other: Self) -> Self {
         f64::max(self, other)
+    }
+    #[inline(always)]
+    fn sin(self) -> Self {
+        f64::sin(self)
+    }
+    #[inline(always)]
+    fn cos(self) -> Self {
+        f64::cos(self)
     }
 }
