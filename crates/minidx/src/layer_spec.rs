@@ -246,6 +246,27 @@ impl<const I: usize, const O: usize, E: Dtype + Float + MatMulImpl> Buildable<E>
     }
 }
 
+/// A GLU layer with a tanh gate.
+///
+/// Gated Linear Units learn a linear transform + bias of the input
+/// values to the output values, while also learning when to activate
+/// each output (the 'gate', a linear transform + bias + tanh).
+///
+///  - **I**: The number of inputs this layer takes.
+///  - **O**: The number of outputs this layer produces.
+///  - **E**: The datatype of the parameters (i.e. [f32]).
+///
+/// This results in `2*I*O + 2O` number of learnable parameters.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct TanhGLU<const I: usize, const O: usize> {}
+
+impl<const I: usize, const O: usize, E: Dtype + Float + MatMulImpl> Buildable<E> for TanhGLU<I, O> {
+    type Built = GLUL<E, I, O, Activation<E>>;
+    fn try_build(&self) -> Result<Self::Built, crate::Error> {
+        Ok(GLUL::tanh())
+    }
+}
+
 /// A 1-dimensional convolution with specified input size, output size, and filter width.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Conv1d<const I: usize, const O: usize, const F: usize> {}

@@ -38,6 +38,12 @@ impl<E: Dtype + Float + MatMulImpl, const I: usize, const O: usize> GLU<E, I, O,
             ..Self::default()
         }
     }
+    pub fn tanh() -> Self {
+        Self {
+            activation: Activation::<E>::Tanh,
+            ..Self::default()
+        }
+    }
 }
 
 impl<
