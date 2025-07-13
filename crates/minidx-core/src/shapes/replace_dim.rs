@@ -1,6 +1,7 @@
 use super::{Axes, Axis, Dim, Shape};
 
 /// Marker for shapes that can be indexed and have a dimension removed
+#[allow(dead_code)]
 pub trait RemoveDimTo<Dst: Shape, Idx: Shape>: Shape {
     type Ax: Axes<Array = [isize; 1]>;
 
@@ -33,6 +34,7 @@ pub trait RemoveDimTo<Dst: Shape, Idx: Shape>: Shape {
 }
 
 /// Marker for shapes that can be indexed and have a dimension replaced with a new one
+#[allow(dead_code)]
 pub trait ReplaceDimTo<Dst: Shape, Idx: Shape>: Shape {
     type Ax: Axes<Array = [isize; 1]>;
 

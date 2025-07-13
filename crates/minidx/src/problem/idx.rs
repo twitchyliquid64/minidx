@@ -90,7 +90,6 @@ impl<F: Read> Reader<F> {
     pub fn next<E: Dtype>(&mut self) -> Result<Vec<E>, Error> {
         let mut out = vec![E::default(); self.elements_per_row()];
         for e in out.iter_mut() {
-            use num_traits::cast::FromPrimitive;
             use Element::*;
             *e = match self.element {
                 UnsignedByte => E::from_u8(self.file.read_u8()?).unwrap(),

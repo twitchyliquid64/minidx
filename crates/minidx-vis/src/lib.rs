@@ -59,7 +59,6 @@ pub struct ParamVisOpts {
     offset: (f32, f32),
     module_padding: (f32, f32),
     cell: ParamBox,
-    scale: ParamScale,
     font: VisFont,
 }
 
@@ -71,7 +70,6 @@ impl Default for ParamVisOpts {
             offset: (2.0, 2.0),
             module_padding: (2.0, 6.0),
             cell: Default::default(),
-            scale: Default::default(),
             font,
         }
     }

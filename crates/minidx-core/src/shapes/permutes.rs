@@ -7,6 +7,7 @@ use super::*;
 /// axes 0 and 1.
 pub trait PermuteShapeTo<Dst, Ax> {}
 
+#[allow(dead_code)]
 pub trait PermuteStridesTo<S: Shape, Ax>: Shape + PermuteShapeTo<S, Ax> {
     fn permuted(&self) -> S;
     fn permute_strides(&self, strides: Self::Concrete) -> S::Concrete;

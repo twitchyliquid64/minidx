@@ -51,7 +51,6 @@ impl<E: Float, const I: usize> DiffLoss for [E; I] {
         if I == 0 {
             return E::default();
         }
-        use num_traits::FromPrimitive;
         let half = E::from_f32(0.5).unwrap();
         let beta = E::from_f32(beta).unwrap();
 
@@ -74,7 +73,6 @@ impl<E: Float, const I: usize> DiffLoss for [E; I] {
 
     /// Computes the gradients of each input with regards to the [DiffLoss::huber].
     fn huber_input_grads(&self, beta: f32, truth: &Self) -> [E; I] {
-        use num_traits::FromPrimitive;
         let beta = E::from_f32(beta).unwrap();
         let c = E::from_usize(I).unwrap();
         let mut out = [E::default(); I];

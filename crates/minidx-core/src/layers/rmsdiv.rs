@@ -82,8 +82,8 @@ impl<E: Float + MatMulImpl, const I: usize> crate::RevModule<[E; I]> for RMSDiv<
 
     fn apply(
         &mut self,
-        applyer: &mut impl crate::optimizers::GradApplyer,
-        updates: Self::SelfGrads,
+        _applyer: &mut impl crate::optimizers::GradApplyer,
+        _updates: Self::SelfGrads,
     ) -> Result<(), crate::Error> {
         Ok(())
     }
@@ -92,8 +92,8 @@ impl<E: Float + MatMulImpl, const I: usize> crate::RevModule<[E; I]> for RMSDiv<
 impl<E: Float + MatMulImpl, const I: usize> crate::ResetParams for RMSDiv<E, I> {
     fn rand_params<RNG: rand::Rng>(
         &mut self,
-        rng: &mut RNG,
-        scale: f32,
+        _rng: &mut RNG,
+        _scale: f32,
     ) -> Result<(), crate::Error> {
         Ok(())
     }
@@ -110,16 +110,16 @@ impl<E: Float + MatMulImpl, const I: usize> crate::VisualizableUnit for RMSDiv<E
 impl<E: Float + MatMulImpl, const I: usize> crate::LoadableModule for RMSDiv<E, I> {
     fn save(
         &self,
-        path: String,
-        dict: &mut std::collections::HashMap<String, Vec<f64>>,
+        _path: String,
+        _dict: &mut std::collections::HashMap<String, Vec<f64>>,
     ) -> Result<(), crate::LoadSaveError> {
         Ok(())
     }
 
     fn load(
         &mut self,
-        path: String,
-        dict: &std::collections::HashMap<String, Vec<f64>>,
+        _path: String,
+        _dict: &std::collections::HashMap<String, Vec<f64>>,
     ) -> Result<(), crate::LoadSaveError> {
         Ok(())
     }

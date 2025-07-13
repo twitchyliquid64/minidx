@@ -187,6 +187,7 @@ shape!((D1 0, D2 1, D3 2, D4 3, D5 4), rank=5, all=Axes5);
 shape!((D1 0, D2 1, D3 2, D4 3, D5 4, D6 5), rank=6, all=Axes6);
 
 /// Marker for shapes that have the same number of elements as `Dst`
+#[allow(dead_code)]
 pub trait AssertSameNumel<Dst: ConstShape>: ConstShape {
     const TYPE_CHECK: ();
     fn assert_same_numel() {

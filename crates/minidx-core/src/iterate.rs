@@ -1,5 +1,6 @@
 use super::Shape;
 
+#[allow(dead_code)]
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) struct NdIndex<S: Shape> {
     pub(crate) indices: S::Concrete,
@@ -9,6 +10,7 @@ pub(crate) struct NdIndex<S: Shape> {
     pub(crate) contiguous: Option<usize>,
 }
 
+#[allow(dead_code)]
 impl<S: Shape> NdIndex<S> {
     #[inline]
     pub(crate) fn new(shape: S, strides: S::Concrete) -> Self {
@@ -26,6 +28,7 @@ impl<S: Shape> NdIndex<S> {
     }
 }
 
+#[allow(dead_code)]
 impl<S: Shape> NdIndex<S> {
     pub(crate) fn get_strided_index(&self, mut idx: usize) -> usize {
         let mut out = 0;
@@ -97,26 +100,31 @@ impl<S: Shape> NdIndex<S> {
     }
 }
 
+#[allow(dead_code)]
 pub(crate) struct StridedRefIter<'a, S: Shape, E> {
     pub(crate) data: &'a Vec<E>,
     pub(crate) index: NdIndex<S>,
 }
 
+#[allow(dead_code)]
 pub(crate) struct StridedMutIter<'a, S: Shape, E> {
     pub(crate) data: &'a mut Vec<E>,
     pub(crate) index: NdIndex<S>,
 }
 
+#[allow(dead_code)]
 pub(crate) struct StridedRefIndexIter<'a, S: Shape, E> {
     pub(crate) data: &'a Vec<E>,
     pub(crate) index: NdIndex<S>,
 }
 
+#[allow(dead_code)]
 pub(crate) struct StridedMutIndexIter<'a, S: Shape, E> {
     pub(crate) data: &'a mut Vec<E>,
     pub(crate) index: NdIndex<S>,
 }
 
+#[allow(dead_code)]
 pub(crate) trait LendingIterator {
     type Item<'a>
     where

@@ -27,7 +27,6 @@ impl<E: Dtype, RNG: rand::Rng, const I: usize, const O: usize> ImgClassification
         {
             assert_eq!(i.len(), I);
             for (ii, i) in e.0.iter_mut().zip(i.into_iter()) {
-                use num_traits::cast::FromPrimitive;
                 *ii = E::from_f32(i as f32 / 255.0).unwrap();
             }
             e.1 = l[0] as usize;

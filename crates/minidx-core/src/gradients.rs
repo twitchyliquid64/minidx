@@ -259,12 +259,14 @@ pub(crate) trait ClassMarker: Clone + std::fmt::Debug {
 }
 
 /// A wrapper type for gradients which overrides the class reported via [Gradients::grad_iter_mut_with_class].
+#[allow(private_bounds, dead_code)]
 #[derive(Clone, Debug)]
 pub struct ClassWrapper<G: Gradients, M: ClassMarker> {
     g: G,
     m: M,
 }
 
+#[allow(dead_code, private_bounds)]
 impl<G: Gradients, M: ClassMarker> ClassWrapper<G, M> {
     #[inline(always)]
     pub(crate) fn wrap(g: G) -> Self {

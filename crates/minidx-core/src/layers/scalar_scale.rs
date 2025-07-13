@@ -89,8 +89,8 @@ impl<E: Dtype, const I: usize> crate::RevModule<[E; I]> for ScalarScale<E> {
 impl<E: Dtype> crate::ResetParams for ScalarScale<E> {
     fn rand_params<RNG: rand::Rng>(
         &mut self,
-        rng: &mut RNG,
-        scale: f32,
+        _rng: &mut RNG,
+        _scale: f32,
     ) -> Result<(), crate::Error> {
         // 0.5 initial value
         self.scale = E::ONE.div(E::ONE + E::ONE);

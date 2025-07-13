@@ -87,8 +87,8 @@ impl<E: Dtype, const I: usize> crate::RevModule<[E; I]> for Diag<E, I> {
 impl<E: Dtype, const I: usize> crate::ResetParams for Diag<E, I> {
     fn rand_params<RNG: rand::Rng>(
         &mut self,
-        rng: &mut RNG,
-        scale: f32,
+        _rng: &mut RNG,
+        _scale: f32,
     ) -> Result<(), crate::Error> {
         self.weights = [E::ONE; I];
         Ok(())
